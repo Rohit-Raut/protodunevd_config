@@ -1,0 +1,49 @@
+#include "services_protodunevd.fcl"
+#include "wirecell_dune.fcl"
+#include "opticaldetectormodules_dune.fcl"
+#include "tools_dune.fcl"
+
+process_name: DetsimCosmic
+
+services:
+{
+	TFileService: 		{fileName: "detsim_cosmic.root"}
+	TimeTracker:		@local::dune_time_tracker
+	MemoryTracker:		@local::dune_memory_tracker
+	RandomNumberGenerator:	{}
+	FileCatalogMetadata:	@local::art_file_catalog_mc
+	@table::protodunevd_simulation_services
+}
+source:
+{
+	module_type:	RootInput
+	maxEvents:	10
+	fileNames:	["/exp/dune/app/users/rraut/vd_cosmic/genie_config/gen_cosmic__stage1_g4_stage2_g4.root"]
+}
+
+physics:
+{
+	producers: 
+	{
+		tpcrawdecoder: 	@local::wirecell_protodunevd_mc
+		rns:		{module_type: "RandomNumberSaver"}
+	
+	}
+	simulate: 		[rns, tpcrawdecoder]
+	stream1:		[out1]
+	trigger_paths: 		[simulate]
+	end_paths:		[stream1]
+}
+outputs:
+{
+	out1:
+	{
+		module_type: 	RootOutput
+		fileName: 	"%ifb_detsim.root"
+		dataTier:	"detector-simulated"
+		compressionLevel:1
+		fastCloning:	true
+		outputCommands:["keep *", "drop sim::SimEnergyDeposit*_*_*_*"]
+	}
+}
+
