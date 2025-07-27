@@ -1,0 +1,33 @@
+#include "services_dune.fcl"
+#include "ProtoDUNEDataUtils.fcl"
+#include "services_vdcoldbox.fcl"
+#include "tools_dune.fcl"
+
+process_name: cosmicAnalysisProcess
+services:{
+    TFileService:       {fileName:"cosmic_analysis.root"}
+    @table::protodune_services
+    TimeTracker:        @local::dune_time_tracker
+    MemoryTracker:      @local::dune_memory_tracker
+    message:            @local::standard_info
+}
+
+source:
+{
+    module_type: RootInput
+    maxEvents: -1
+    fileNames:["/exp/dune/app/users/rraut/vd_cosmic/genie_config/gen_cosmic__stage1_g4_stage2_g4_detsim.root"]
+}
+
+physics:
+{
+    analyzers:{
+        cosmicAnalysis:{
+            module_type:        "cosmicAnalysis"
+            MCParticleTag:      "largeant"
+        }
+    }
+    ana:                        [cosmicAnalysis]
+    trigger_paths:               []
+    end_paths:                  [ana]
+}
