@@ -1,0 +1,8 @@
+cet_build_plugin(cosmicAnalysis art::module BASENAME_ONLY LIBRARIES
+                nusimdata::SimulationBase
+                larcore::Geometry
+                art::Framework_Core
+                art_root_io::TFileService_service
+)
+install_fhicl()
+install_source()%
