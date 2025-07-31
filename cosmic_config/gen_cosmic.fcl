@@ -1,0 +1,59 @@
+#include "services_protodunevd.fcl"
+#include "corsika_protodune.fcl"
+#include "CORSIKAGendp.fcl"
+#include "dune_radiological_model.fcl"
+
+process_name:CosmicGen
+
+services:
+{
+	TFileService:				{fileName:"/exp/dune/app/users/rraut/vd_cosmic/work/gen_protodunevd_cosmis_hist.root"}
+	TimeTracker: 				@local::dune_time_tracker
+	MemoryTracker: 				@local::dune_memory_tracker
+	RandomNumberGenerator:			{}
+	FileCatalogMetadata:			@local::art_file_catalog_mc
+	@table::protodunevd_simulation_services
+}
+
+#starting sourcing with empty event
+source:
+{
+	module_type: 				EmptyEvent
+	timestampPlugin:			{plugin_type:"GeneratedEventTimestamp"}
+	maxEvents:				100
+	firstRun:				1
+	firstEvent:				1
+
+}
+
+physics:
+{
+	producers:
+	{
+		cosmicgenerator: 		@local::standard_CORSIKAGendp_CMC
+
+	}
+	simulate: 				[cosmicgenerator]
+	stream1: 				[out1]
+	trigger_paths:				[simulate]
+	end_paths:				[stream1]
+
+}
+
+outputs:
+{
+	out1:
+	{
+		module_type: 			RootOutput
+		fileName: 			"gen_cosmic.root"
+		dataTier: 			"generated"
+		compressionLevel:		1
+
+	}
+}
+services.TFileService.fileName: 				"/exp/dune/app/users/rraut/vd_cosmic/work/gen_protodunevd_cosmic_hist.root"
+source.maxEvents: 								100
+outputs.out1.fileName: 							"/exp/dune/app/users/rraut/vd_cosmic/work/gen_cosmic.root"
+physics.producers.cosmicgenerator.SampleTime: 	6.0e-3
+physics.producers.cosmicgenerator.TimeOffset: 	-3.0e-3
+
