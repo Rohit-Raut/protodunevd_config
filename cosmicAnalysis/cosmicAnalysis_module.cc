@@ -132,13 +132,7 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     double det_back     =  -9999.0;
     double det_width    =  0.0;
     for(geo::TPCGeo const& TPC: geom->Iterate<geo::TPCGeo>()){
-        //if(TPC.DriftDistance()< 25.0) continue;
-        auto const center   = TPC.GetCenter();
-      //  det_top      = center.Y()+TPC.HalfHeight();
-      //  det_bottom   = center.Y()-TPC.HalfHeight();
-      //  det_front    = center.Z()+TPC.HalfLength();
-      //  det_back    = center.Z()-TPC.HalfLength();
-      //  
+         auto const center   = TPC.GetCenter();
          double tpc_top      = center.Y()+TPC.HalfHeight();
          double tpc_bottom   = center.Y()-TPC.HalfHeight();
          double tpc_front    = center.Z()-TPC.HalfLength();
@@ -150,80 +144,78 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
          det_width    = TPC.DriftDistance();
     }
     std::cout<<"The detector geometry, height: ("<<det_top<<" , "<<det_bottom<<"), Detector Length: ("<<det_front<<" , "<<det_back<<" ). Drift Distance: "<<det_width<<". \n"<<std::endl;
-
+    int primaryCount = 0;
     for (auto const& particle: mcParticleList){
-        if(particle.Mother() !=0) continue;
-        
-        fSecondaryPdg.clear();
-        fSecondaryE.clear();
-        fSecondaryVx.clear();
-        fSecondaryVy.clear();
-        fSecondaryVz.clear();
+        if(particle.Mother() ==0)
+	{		
+		 primaryCount++;
+       		 fSecondaryPdg.clear();
+       		 fSecondaryE.clear();
+       		 fSecondaryVx.clear();
+       		 fSecondaryVy.clear();
+       		 fSecondaryVz.clear();
 
-        fPrimPdg    = particle.PdgCode();
-        fPrimE      = particle.E();
-        fPrimVx     = particle.Vx();
-        fPrimVy     = particle.Vy();
-        fPrimVz     = particle.Vz();
-        fPrimPx     = particle.Px();
-        fPrimPy     = particle.Py();
-        fPrimPz     = particle.Pz();
-        
-        fTrackLengthInTPC       = 0.0;
-        TVector3 tpcEntryPoint(-999,-999,-999), tpcExitPoint(-999,-999,-999);
+       		 fPrimPdg    = particle.PdgCode();
+       		 fPrimE      = particle.E();
+       		 fPrimVx     = particle.Vx();
+       		 fPrimVy     = particle.Vy();
+       		 fPrimVz     = particle.Vz();
+       		 fPrimPx     = particle.Px();
+       		 fPrimPy     = particle.Py();
+       		 fPrimPz     = particle.Pz();
+       		 
+       		 fTrackLengthInTPC       = 0.0;
+       		 TVector3 tpcEntryPoint(-999,-999,-999), tpcExitPoint(-999,-999,-999);
 
-        bool enterTPC           = false;
-//        const geo::TPCGeo& tpc  = geom->TPC(geom->GetBeginTPC().ID());
-//        fDetHalfWidth           = tpc.HalfWidth();
-//        fDetHalfHeight          = tpc.HalfHeight();
-//        fDetLength              = tpc.Length();
-//
-        for (size_t i=0; i<particle.NumberTrajectoryPoints(); ++i){
-            TVector3 currentPoint = particle.Position(i).Vect();
-            bool isInside = false;
+       		 bool enterTPC           = false;
+       		 for (size_t i=0; i<particle.NumberTrajectoryPoints(); ++i){
+       		     TVector3 currentPoint = particle.Position(i).Vect();
+       		     bool isInside = false;
 
-	    //checking if the point are inside any of the TPCs
-	    for(geo::TPCGeo const& tpc: geom->Iterate<geo::TPCGeo>()){
-	   	 if(tpc.ContainsPosition(currentPoint)){
-            isInside      = true;
-			break;
-		 }
-     	    }
-	    if(isInside){
-	    	if(!enterTPC){
-			tpcEntryPoint 	= currentPoint;
-			enterTPC 	=true;
-		}
-		tpcExitPoint = currentPoint;
-	    }
-        }
-        if(enterTPC){
-            fTPCEntryX          = tpcEntryPoint.X();
-            fTPCEntryY          = tpcEntryPoint.Y();
-            fTPCEntryZ          = tpcEntryPoint.Z();
-            fTPCExitX           = tpcExitPoint.X();
-            fTPCExitY           = tpcExitPoint.Y();
-            fTPCExitZ           = tpcExitPoint.Z();
-            fTrackLengthInTPC     =(tpcExitPoint-tpcEntryPoint).Mag();
+       		     //checking if the point are inside any of the TPCs
+       		     for(geo::TPCGeo const& tpc: geom->Iterate<geo::TPCGeo>()){
+       		    	 if(tpc.ContainsPosition(currentPoint)){
+       		     isInside      = true;
+       		 		break;
+       		 	 }
+       		     }
+       		     if(isInside){
+       		     	if(!enterTPC){
+       		 		tpcEntryPoint 	= currentPoint;
+       		 		enterTPC 	=true;
+       		 	}
+       		 	tpcExitPoint = currentPoint;
+       		     }
+       		 }
+       		 if(enterTPC){
+       		     fTPCEntryX          = tpcEntryPoint.X();
+       		     fTPCEntryY          = tpcEntryPoint.Y();
+       		     fTPCEntryZ          = tpcEntryPoint.Z();
+       		     fTPCExitX           = tpcExitPoint.X();
+       		     fTPCExitY           = tpcExitPoint.Y();
+        	     fTPCExitZ           = tpcExitPoint.Z();
+       		     fTrackLengthInTPC     =(tpcExitPoint-tpcEntryPoint).Mag();
 
-        }
-        else{
-            fTPCEntryX  = -1; fTPCEntryY    = -1; fTPCEntryZ    = -1;
-            fTPCExitX   = -1; fTPCExitY     = -1; fTPCExitZ     = -1;
-        }
-        int primTrackId = particle.TrackId();
-        for(auto const& secondary: mcParticleList){
-            if(secondary.Mother()==primTrackId){
-                fSecondaryPdg.push_back(secondary.PdgCode());
-                fSecondaryE.push_back(secondary.E());
-                fSecondaryVx.push_back(secondary.Vx());
-                fSecondaryVy.push_back(secondary.Vy());
-                fSecondaryVz.push_back(secondary.Vz());
-            }
-        }
-        fNSecondaries   = fSecondaryPdg.size();
-        fTree->Fill();
-    
+       		 }
+       		 else{
+       		     fTPCEntryX  = -1; fTPCEntryY    = -1; fTPCEntryZ    = -1;
+       		     fTPCExitX   = -1; fTPCExitY     = -1; fTPCExitZ     = -1;
+       		 }
+       		 int primTrackId = particle.TrackId();
+       		 for(auto const& secondary: mcParticleList){
+       		     if(secondary.Mother()==primTrackId){
+       		         fSecondaryPdg.push_back(secondary.PdgCode());
+       		         fSecondaryE.push_back(secondary.E());
+       		         fSecondaryVx.push_back(secondary.Vx());
+       		         fSecondaryVy.push_back(secondary.Vy());
+       		         fSecondaryVz.push_back(secondary.Vz());
+       		     }
+       		 }
+       		 fNSecondaries   = fSecondaryPdg.size();
+       		 fTree->Fill();
+    	}
     }
+    std::cout<<"\n Number of Primary Recorded: "<<primaryCount<<".\n"<<std::endl;
+
 }
 DEFINE_ART_MODULE(duneana::cosmicAnalysis)
