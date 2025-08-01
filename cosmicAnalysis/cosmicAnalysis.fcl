@@ -17,7 +17,7 @@ source:
 {
     module_type: RootInput
     maxEvents: -1
-    fileNames:["/exp/dune/app/users/rraut/vd_cosmic/genie_config/gen_cosmic__stage1_g4_stage2_g4_detsim.root"]
+    fileNames:["/exp/dune/app/users/rraut/vd_cosmic/work/gen_cosmic_stage1_stage2_detsim.root"]
 }
 
 physics:
@@ -26,7 +26,8 @@ physics:
         cosmicAnalysis:{
             module_type:        "cosmicAnalysis"
             MCParticleTag:      "largeant"
-        }
+	    TPLabel:		"tpmakerTPC"
+	}
     }
     ana:                        [cosmicAnalysis]
     trigger_paths:               []

@@ -1,6 +1,7 @@
+include_directories("${dunedetdataformats_DIR}/../../../include")
 cet_build_plugin(       cosmicAnalysis art::module 
                         LIBRARIES
-                        lardataobj::Simulation
+			lardataobj::Simulation
                         lardataobj::AnalysisBase
                         nusimdata::SimulationBase
                         lardata::ArtDataHelper

@@ -6,6 +6,7 @@
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
+#include "detdataformats/trigger/TriggerPrimitive.hpp"
 
 // LArSoft data products
 #include "nusimdata/SimulationBase/MCParticle.h"
@@ -19,7 +20,7 @@
 
 #include <vector>
 #include <string>
-
+#include <cmath>
 
 namespace duneana{
     class cosmicAnalysis: public art::EDAnalyzer{
@@ -35,8 +36,9 @@ namespace duneana{
 
         private:
             art::InputTag fMCParticleTag;
+	    art::InputTag fTPLabel;
             TTree* fTree;
-
+	    TTree* fTreeTP;
 
 
             //recording data
@@ -63,11 +65,20 @@ namespace duneana{
             std::vector<int>    fSecondaryPdg;
             std::vector<double> fSecondaryE;
             std::vector<double> fSecondaryVx, fSecondaryVy, fSecondaryVz;
+		
+	    //TP data storage
+	    double fTPTimeStart;
+	    double fTPTimePeak;
+	    double fTPTimeOverThreshold;
+	    int fTPChannel;
+	    double fTPADCPeak;
+	    double fTPDetId;
     };
 }
 duneana::cosmicAnalysis::cosmicAnalysis(fhicl::ParameterSet const& p)
     :EDAnalyzer(p),
-    fMCParticleTag(p.get<art::InputTag>("MCParticleTag"))
+    fMCParticleTag(p.get<art::InputTag>("MCParticleTag")),
+    fTPLabel(p.get<art::InputTag>("TPLabel"))
 {}
 
 
@@ -108,7 +119,20 @@ void duneana::cosmicAnalysis::beginJob(){
     fTree->Branch("secondaryVx",    &fSecondaryVx);
     fTree->Branch("secondaryVy",    &fSecondaryVy);
     fTree->Branch("secondaryVz",    &fSecondaryVz);
+
+    fTreeTP = tfs->make<TTree>("TP", "analysis");
+
+    fTreeTP->Branch("run", 		&fRun, 		"run/I");
+    fTreeTP->Branch("subrun", 		&fSubRun, 	"subrun/I");
+    fTreeTP->Branch("event", 		&fEvent, 	"event/I");
+    fTreeTP->Branch("TPStart", 		&fTPTimeStart, 	"timestart/D");
+    fTreeTP->Branch("TPPeak", 		&fTPTimePeak, 	"TPPeak/D");
+    fTreeTP->Branch("TPTimeOverThreshold", &fTPTimeOverThreshold, "TPTimeOverThreshold/D");
+    fTreeTP->Branch("TPChannel", 	&fTPChannel, 	"TPChannel/I");
+    fTreeTP->Branch("TPADCPeak", 	&fTPADCPeak, 	"TPADCPeak/D");
+    fTreeTP->Branch("TPDetId", 		&fTPDetId,	"TPDetId/D");
 }
+
 
 void duneana::cosmicAnalysis::analyze(art::Event const& e){
     fRun    = e.run();
@@ -143,9 +167,31 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
          if(tpc_back     >   det_back)   det_back    = tpc_back;
          det_width    = TPC.DriftDistance();
     }
+    fDetHalfHeight 	= std::abs(det_top)+std::abs(det_bottom);
+    fDetLength  	= std::abs(det_front)+std::abs(det_back);
+    fDetHalfWidth 	= det_width;
     std::cout<<"The detector geometry, height: ("<<det_top<<" , "<<det_bottom<<"), Detector Length: ("<<det_front<<" , "<<det_back<<" ). Drift Distance: "<<det_width<<". \n"<<std::endl;
     int primaryCount = 0;
+    
+    //TP information extraction
+    art::Handle<std::vector<dunedaq::trgdataformats::TriggerPrimitive>> tpHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerPrimitive>>(fTPLabel);
+    if (tpHandle.isValid()){
+    	for (const dunedaq::trgdataformats::TriggerPrimitive &tp: *tpHandle){
+		fTPTimeStart 	= tp.time_start;
+		fTPTimePeak  	= tp.time_peak;
+		fTPTimeOverThreshold 	= tp.time_over_threshold;
+		fTPChannel		= tp.channel;
+		fTPADCPeak 		= tp.adc_peak;
+		fTPDetId		= tp.detid;
+		fTreeTP->Fill();
+	}
+    }
+    else{
+	    mf::LogWarning("TP Analysis")<< "No Trigger Primitive Found:  "<<fTPLabel<<"..........\n";
+    }
+    
     for (auto const& particle: mcParticleList){
+
         if(particle.Mother() ==0)
 	{		
 		 primaryCount++;
