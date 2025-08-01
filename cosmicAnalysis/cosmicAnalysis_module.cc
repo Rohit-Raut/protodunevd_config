@@ -7,6 +7,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "detdataformats/trigger/TriggerPrimitive.hpp"
+#include "detdataformats/trigger/TriggerActivity.hpp"
 
 // LArSoft data products
 #include "nusimdata/SimulationBase/MCParticle.h"
@@ -37,7 +38,8 @@ namespace duneana{
         private:
             art::InputTag fMCParticleTag;
 	    art::InputTag fTPLabel;
-            TTree* fTree;
+	    art::InputTag fTALabel;
+	    TTree* fTree;
 	    TTree* fTreeTP;
 
 
@@ -72,13 +74,26 @@ namespace duneana{
 	    double fTPTimeOverThreshold;
 	    int fTPChannel;
 	    double fTPADCPeak;
+	    double fTPADCSum;
 	    double fTPDetId;
+
+	    //TA information
+	    int fTANTPs;
+	    double fTATimeStart;
+	    double fTATimeEnd;
+	    double fTATimePeak;
+	    double fTAADCPeak;
+	    double fTAADCSum;
+	    int fTAChannelStart;
+	    int fTAChannelEnd;
+	    int fTAChannelPeak;
     };
 }
 duneana::cosmicAnalysis::cosmicAnalysis(fhicl::ParameterSet const& p)
     :EDAnalyzer(p),
     fMCParticleTag(p.get<art::InputTag>("MCParticleTag")),
-    fTPLabel(p.get<art::InputTag>("TPLabel"))
+    fTPLabel(p.get<art::InputTag>("TPLabel")),
+    fTALabel(p.get<art::InputTag>("TALabel"))
 {}
 
 
@@ -127,10 +142,25 @@ void duneana::cosmicAnalysis::beginJob(){
     fTreeTP->Branch("event", 		&fEvent, 	"event/I");
     fTreeTP->Branch("TPStart", 		&fTPTimeStart, 	"timestart/D");
     fTreeTP->Branch("TPPeak", 		&fTPTimePeak, 	"TPPeak/D");
+    fTreeTP->Branch("TPSum", 		&fTPADCSum, 	"TPSum/D");
     fTreeTP->Branch("TPTimeOverThreshold", &fTPTimeOverThreshold, "TPTimeOverThreshold/D");
     fTreeTP->Branch("TPChannel", 	&fTPChannel, 	"TPChannel/I");
     fTreeTP->Branch("TPADCPeak", 	&fTPADCPeak, 	"TPADCPeak/D");
     fTreeTP->Branch("TPDetId", 		&fTPDetId,	"TPDetId/D");
+    
+    //TA information is also recorded in TPTree
+    fTreeTA->Branch("TAnum", 		&fTANTPs, 	"TAnum/I");
+    fTreeTA->Branch("TAStart", 		&fTATimeStart, 	"TAStart/D");
+    fTreeTA->Branch("TAEnd", 		&fTATimeEnd, 	"TAEnd/D");
+    fTreeTA->Branch("TAPeak", 		&fTATimePeak, 	"TAPeak/D");	
+    fTreeTA->Branch("TAADCPeak", 	&fTAADCPeak, 	"TAADCPeak/D");
+    fTreeTA->Branch("TASum", 		&fTAADCSum, 	"TASum/D");
+    fTreeTA->Branch("TAChannelStart", 	&fTAChannelStart,"TAChannelStart/D");
+    fTreeTA->Branch("TAChannelEnd",	&fTAChannelEnd,  "TAChannelEnd/D");
+    fTreeTA->Branch("TAChannelPeak", 	&fTAChannelPeak ,"TAChannelPeak/D");
+
+
+
 }
 
 
@@ -189,7 +219,32 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     else{
 	    mf::LogWarning("TP Analysis")<< "No Trigger Primitive Found:  "<<fTPLabel<<"..........\n";
     }
-    
+   
+
+
+   //flushing out the Trigger Activity information
+   auto tpHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivity>>(fTALabel);
+   if(tpHandle.isValid()){
+   	for (const auto& ta: *tpHandle){
+		fTANTPs 	= ta.inputs.size();
+		fTATimeStart	= ta.time_start;
+		fTATimeEnd	= ta.time_end;
+		fTATimePeak	= ta.time_peak;
+		fTAADCPeak	= ta.adc_peak();
+		fTAADCSum	= ta.adc_integral;
+		fTAChannelStart = ta.channel_start;
+		fTAChannelEnd	= ta.channel_end;
+		fTAChannelPeak	= ta.channel_peak;
+		fTreeTA->Fill();
+
+
+	}
+   }
+   else{
+	   mf::LogWarning("TA analysis")<<"No Trigger Activity Detected: "<<fTALabel<<" .........\n";
+   }
+
+
     for (auto const& particle: mcParticleList){
 
         if(particle.Mother() ==0)

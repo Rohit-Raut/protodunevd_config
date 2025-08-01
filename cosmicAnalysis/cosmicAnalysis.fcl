@@ -22,14 +22,30 @@ source:
 
 physics:
 {
+    producers:{
+    	ta_maker:{
+		module_type: 	"TriggerActivityMaker"
+		tp_input_tag:	"tpmakerTPC"
+		trigger_activity_maker_config:{
+			algorithm:	"ADCSimpleWindow"
+			adcsimplewindow_config:{
+				window_time: 		1000
+				channel_distance_cut:	3
+				add_dummy_tps:		false
+			}
+		}
+	}
+		
+    }
     analyzers:{
         cosmicAnalysis:{
             module_type:        "cosmicAnalysis"
             MCParticleTag:      "largeant"
 	    TPLabel:		"tpmakerTPC"
+	    TALabel:		"tp_maker"
 	}
     }
-    ana:                        [cosmicAnalysis]
+    analysis_path:             [ta_maker, cosmicAnalysis]
     trigger_paths:               []
-    end_paths:                  [ana]
+    end_paths:                  [analysis_path]
 }
