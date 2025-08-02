@@ -23,7 +23,7 @@ source:
 physics:
 {
     producers:{
-    	ta_maker:{
+    	tamaker:{
 		module_type: 	"TriggerActivityMaker"
 		tp_input_tag:	"tpmakerTPC"
 		trigger_activity_maker_config:{
@@ -42,10 +42,10 @@ physics:
             module_type:        "cosmicAnalysis"
             MCParticleTag:      "largeant"
 	    TPLabel:		"tpmakerTPC"
-	    TALabel:		"tp_maker"
+	    TALabel:		"tamaker"
 	}
     }
-    analysis_path:             [ta_maker, cosmicAnalysis]
-    trigger_paths:               []
-    end_paths:                  [analysis_path]
+    analysis_path:             [tamaker, cosmicAnalysis]
+    trigger_paths:             []
+    end_paths:                 [analysis_path]
 }

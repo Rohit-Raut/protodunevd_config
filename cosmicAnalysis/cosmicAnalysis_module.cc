@@ -7,7 +7,9 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "detdataformats/trigger/TriggerPrimitive.hpp"
-#include "detdataformats/trigger/TriggerActivity.hpp"
+#include "detdataformats/trigger/TriggerActivityData.hpp"
+//#include "triggeralgs/TriggerActivity.hpp"
+//#include "trigger/TriggerPrimitive.hpp"
 
 // LArSoft data products
 #include "nusimdata/SimulationBase/MCParticle.h"
@@ -29,7 +31,7 @@ namespace duneana{
             explicit cosmicAnalysis(fhicl::ParameterSet const& p);
             cosmicAnalysis(cosmicAnalysis const&)                   = delete;
             cosmicAnalysis(cosmicAnalysis&&)                        = delete;
-            cosmicAnalysis& operator = (cosmicAnalysis const&)    = delete;
+            cosmicAnalysis& operator = (cosmicAnalysis const&)	    = delete;
             cosmicAnalysis& operator = (cosmicAnalysis&&)           = delete;
 
             void beginJob() override;
@@ -41,7 +43,7 @@ namespace duneana{
 	    art::InputTag fTALabel;
 	    TTree* fTree;
 	    TTree* fTreeTP;
-
+	    TTree* fTreeTA;
 
             //recording data
             int fRun;
@@ -149,6 +151,8 @@ void duneana::cosmicAnalysis::beginJob(){
     fTreeTP->Branch("TPDetId", 		&fTPDetId,	"TPDetId/D");
     
     //TA information is also recorded in TPTree
+    fTreeTA = tfs->make<TTree>("TA", "analysis");
+    fTreeTA->Branch("event", 		&fEvent, 	"event/I");
     fTreeTA->Branch("TAnum", 		&fTANTPs, 	"TAnum/I");
     fTreeTA->Branch("TAStart", 		&fTATimeStart, 	"TAStart/D");
     fTreeTA->Branch("TAEnd", 		&fTATimeEnd, 	"TAEnd/D");
@@ -223,14 +227,14 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
 
 
    //flushing out the Trigger Activity information
-   auto tpHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivity>>(fTALabel);
-   if(tpHandle.isValid()){
-   	for (const auto& ta: *tpHandle){
-		fTANTPs 	= ta.inputs.size();
+   art::Handle<std::vector<dunedaq::trgdataformats::TriggerActivityData>> taHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivityData>>(fTALabel);
+   if(taHandle.isValid()){
+   	for (const auto& ta: *taHandle){
+		//fTANTPs 	= ta.num_tps;
 		fTATimeStart	= ta.time_start;
 		fTATimeEnd	= ta.time_end;
 		fTATimePeak	= ta.time_peak;
-		fTAADCPeak	= ta.adc_peak();
+		fTAADCPeak	= ta.adc_peak;
 		fTAADCSum	= ta.adc_integral;
 		fTAChannelStart = ta.channel_start;
 		fTAChannelEnd	= ta.channel_end;
