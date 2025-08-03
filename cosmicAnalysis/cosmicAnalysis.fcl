@@ -24,16 +24,38 @@ physics:
 {
     producers:{
     	tamaker:{
-		module_type: 	"TriggerActivityMaker"
-		tp_input_tag:	"tpmakerTPC"
-		trigger_activity_maker_config:{
-			algorithm:	"ADCSimpleWindow"
-			adcsimplewindow_config:{
-				window_time: 		1000
-				channel_distance_cut:	3
-				add_dummy_tps:		false
-			}
+		module_type: 	"TriggerActivityMakerTPC"
+		tp_tag:	"tpmakerTPC"
+		algorithm:	"TriggerActivityMakerADCSimpleWindowPlugin"
+		algconfig_plane0:{
+			window_length:	1000
+			adc_threshold:	20
 		}
+		
+		algconfig_plane1:{
+			window_length:	1000
+			adc_threshold:	20
+		}		
+		algconfig_plane2:{
+			window_length:	1000
+			adc_threshold:	20
+		}
+		algconfig_plane3:{
+			window_length:	1000
+			adc_threshold:	20
+		}
+		mergecollwires:	true
+		flush:		true
+		print_tp_info:	false
+		verbosity:	1
+		#trigger_activity_maker_config:{
+		#	algorithm:	"ADCSimpleWindow"
+		#	adcsimplewindow_config:{
+		#		window_time: 		1000
+		#		channel_distance_cut:	3
+		#		add_dummy_tps:		false
+		#	}
+		#}
 	}
 		
     }
@@ -45,7 +67,8 @@ physics:
 	    TALabel:		"tamaker"
 	}
     }
-    analysis_path:             [tamaker, cosmicAnalysis]
-    trigger_paths:             []
-    end_paths:                 [analysis_path]
+    trigger_sim:		[tamaker]
+    analysis_path:              [cosmicAnalysis]
+    trigger_paths:              [trigger_sim]
+    end_paths:                  [analysis_path]
 }

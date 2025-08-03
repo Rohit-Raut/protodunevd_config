@@ -211,114 +211,113 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     art::Handle<std::vector<dunedaq::trgdataformats::TriggerPrimitive>> tpHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerPrimitive>>(fTPLabel);
     if (tpHandle.isValid()){
     	for (const dunedaq::trgdataformats::TriggerPrimitive &tp: *tpHandle){
-		fTPTimeStart 	= tp.time_start;
-		fTPTimePeak  	= tp.time_peak;
-		fTPTimeOverThreshold 	= tp.time_over_threshold;
-		fTPChannel		= tp.channel;
-		fTPADCPeak 		= tp.adc_peak;
-		fTPDetId		= tp.detid;
-		fTreeTP->Fill();
-	}
+        fTPTimeStart 	= tp.time_start;
+        fTPTimePeak  	= tp.time_peak;
+        fTPTimeOverThreshold 	= tp.time_over_threshold;
+        fTPChannel		= tp.channel;
+        fTPADCPeak 		= tp.adc_peak;
+        fTPDetId		= tp.detid;
+        fTreeTP->Fill();
+      }
     }
     else{
-	    mf::LogWarning("TP Analysis")<< "No Trigger Primitive Found:  "<<fTPLabel<<"..........\n";
+      mf::LogWarning("TP Analysis")<< "No Trigger Primitive Found:  "<<fTPLabel<<"..........\n";
     }
-   
 
 
-   //flushing out the Trigger Activity information
-   art::Handle<std::vector<dunedaq::trgdataformats::TriggerActivityData>> taHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivityData>>(fTALabel);
-   if(taHandle.isValid()){
-   	for (const auto& ta: *taHandle){
-		//fTANTPs 	= ta.num_tps;
-		fTATimeStart	= ta.time_start;
-		fTATimeEnd	= ta.time_end;
-		fTATimePeak	= ta.time_peak;
-		fTAADCPeak	= ta.adc_peak;
-		fTAADCSum	= ta.adc_integral;
-		fTAChannelStart = ta.channel_start;
-		fTAChannelEnd	= ta.channel_end;
-		fTAChannelPeak	= ta.channel_peak;
-		fTreeTA->Fill();
+    //flushing out the Trigger Activity information
+    art::Handle<std::vector<dunedaq::trgdataformats::TriggerActivityData>> taHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivityData>>(fTALabel);
+    if(taHandle.isValid()){
+      for (const auto& ta: *taHandle){
+        //fTANTPs 	= ta.num_tps;
+        fTATimeStart	= ta.time_start;
+        fTATimeEnd	= ta.time_end;
+        fTATimePeak	= ta.time_peak;
+        fTAADCPeak	= ta.adc_peak;
+        fTAADCSum	= ta.adc_integral;
+        fTAChannelStart = ta.channel_start;
+        fTAChannelEnd	= ta.channel_end;
+        fTAChannelPeak	= ta.channel_peak;
+        fTreeTA->Fill();
 
 
-	}
-   }
-   else{
-	   mf::LogWarning("TA analysis")<<"No Trigger Activity Detected: "<<fTALabel<<" .........\n";
-   }
+      }
+    }
+    else{
+      mf::LogWarning("TA analysis")<<"No Trigger Activity Detected: "<<fTALabel<<" .........\n";
+    }
 
 
     for (auto const& particle: mcParticleList){
 
-        if(particle.Mother() ==0)
-	{		
-		 primaryCount++;
-       		 fSecondaryPdg.clear();
-       		 fSecondaryE.clear();
-       		 fSecondaryVx.clear();
-       		 fSecondaryVy.clear();
-       		 fSecondaryVz.clear();
+      if(particle.Mother() ==0)
+      {		
+        primaryCount++;
+        fSecondaryPdg.clear();
+        fSecondaryE.clear();
+        fSecondaryVx.clear();
+        fSecondaryVy.clear();
+        fSecondaryVz.clear();
 
-       		 fPrimPdg    = particle.PdgCode();
-       		 fPrimE      = particle.E();
-       		 fPrimVx     = particle.Vx();
-       		 fPrimVy     = particle.Vy();
-       		 fPrimVz     = particle.Vz();
-       		 fPrimPx     = particle.Px();
-       		 fPrimPy     = particle.Py();
-       		 fPrimPz     = particle.Pz();
-       		 
-       		 fTrackLengthInTPC       = 0.0;
-       		 TVector3 tpcEntryPoint(-999,-999,-999), tpcExitPoint(-999,-999,-999);
+        fPrimPdg    = particle.PdgCode();
+        fPrimE      = particle.E();
+        fPrimVx     = particle.Vx();
+        fPrimVy     = particle.Vy();
+        fPrimVz     = particle.Vz();
+        fPrimPx     = particle.Px();
+        fPrimPy     = particle.Py();
+        fPrimPz     = particle.Pz();
 
-       		 bool enterTPC           = false;
-       		 for (size_t i=0; i<particle.NumberTrajectoryPoints(); ++i){
-       		     TVector3 currentPoint = particle.Position(i).Vect();
-       		     bool isInside = false;
+        fTrackLengthInTPC       = 0.0;
+        TVector3 tpcEntryPoint(-999,-999,-999), tpcExitPoint(-999,-999,-999);
 
-       		     //checking if the point are inside any of the TPCs
-       		     for(geo::TPCGeo const& tpc: geom->Iterate<geo::TPCGeo>()){
-       		    	 if(tpc.ContainsPosition(currentPoint)){
-       		     isInside      = true;
-       		 		break;
-       		 	 }
-       		     }
-       		     if(isInside){
-       		     	if(!enterTPC){
-       		 		tpcEntryPoint 	= currentPoint;
-       		 		enterTPC 	=true;
-       		 	}
-       		 	tpcExitPoint = currentPoint;
-       		     }
-       		 }
-       		 if(enterTPC){
-       		     fTPCEntryX          = tpcEntryPoint.X();
-       		     fTPCEntryY          = tpcEntryPoint.Y();
-       		     fTPCEntryZ          = tpcEntryPoint.Z();
-       		     fTPCExitX           = tpcExitPoint.X();
-       		     fTPCExitY           = tpcExitPoint.Y();
-        	     fTPCExitZ           = tpcExitPoint.Z();
-       		     fTrackLengthInTPC     =(tpcExitPoint-tpcEntryPoint).Mag();
+        bool enterTPC           = false;
+        for (size_t i=0; i<particle.NumberTrajectoryPoints(); ++i){
+          TVector3 currentPoint = particle.Position(i).Vect();
+          bool isInside = false;
 
-       		 }
-       		 else{
-       		     fTPCEntryX  = -1; fTPCEntryY    = -1; fTPCEntryZ    = -1;
-       		     fTPCExitX   = -1; fTPCExitY     = -1; fTPCExitZ     = -1;
-       		 }
-       		 int primTrackId = particle.TrackId();
-       		 for(auto const& secondary: mcParticleList){
-       		     if(secondary.Mother()==primTrackId){
-       		         fSecondaryPdg.push_back(secondary.PdgCode());
-       		         fSecondaryE.push_back(secondary.E());
-       		         fSecondaryVx.push_back(secondary.Vx());
-       		         fSecondaryVy.push_back(secondary.Vy());
-       		         fSecondaryVz.push_back(secondary.Vz());
-       		     }
-       		 }
-       		 fNSecondaries   = fSecondaryPdg.size();
-       		 fTree->Fill();
-    	}
+          //checking if the point are inside any of the TPCs
+          for(geo::TPCGeo const& tpc: geom->Iterate<geo::TPCGeo>()){
+            if(tpc.ContainsPosition(currentPoint)){
+              isInside      = true;
+              break;
+            }
+          }
+          if(isInside){
+            if(!enterTPC){
+              tpcEntryPoint 	= currentPoint;
+              enterTPC 	=true;
+            }
+            tpcExitPoint = currentPoint;
+          }
+        }
+        if(enterTPC){
+          fTPCEntryX          = tpcEntryPoint.X();
+          fTPCEntryY          = tpcEntryPoint.Y();
+          fTPCEntryZ          = tpcEntryPoint.Z();
+          fTPCExitX           = tpcExitPoint.X();
+          fTPCExitY           = tpcExitPoint.Y();
+          fTPCExitZ           = tpcExitPoint.Z();
+          fTrackLengthInTPC     =(tpcExitPoint-tpcEntryPoint).Mag();
+
+        }
+        else{
+          fTPCEntryX  = -1; fTPCEntryY    = -1; fTPCEntryZ    = -1;
+          fTPCExitX   = -1; fTPCExitY     = -1; fTPCExitZ     = -1;
+        }
+        int primTrackId = particle.TrackId();
+        for(auto const& secondary: mcParticleList){
+          if(secondary.Mother()==primTrackId){
+            fSecondaryPdg.push_back(secondary.PdgCode());
+            fSecondaryE.push_back(secondary.E());
+            fSecondaryVx.push_back(secondary.Vx());
+            fSecondaryVy.push_back(secondary.Vy());
+            fSecondaryVz.push_back(secondary.Vz());
+          }
+        }
+        fNSecondaries   = fSecondaryPdg.size();
+        fTree->Fill();
+      }
     }
     std::cout<<"\n Number of Primary Recorded: "<<primaryCount<<".\n"<<std::endl;
 
