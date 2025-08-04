@@ -10,17 +10,17 @@
 #include "detdataformats/trigger/TriggerActivityData.hpp"
 //#include "triggeralgs/TriggerActivity.hpp"
 //#include "trigger/TriggerPrimitive.hpp"
-
+#include "lardataobj/RawData/RawDigit.h"
 // LArSoft data products
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-
+#include "larcore/Geometry/WireReadout.h"
 // ROOT includes
 #include "TTree.h"
 #include "TLorentzVector.h"
 #include "TVector3.h"
-
+#include <array>
 #include <vector>
 #include <string>
 #include <cmath>
@@ -33,17 +33,17 @@ namespace duneana{
             cosmicAnalysis(cosmicAnalysis&&)                        = delete;
             cosmicAnalysis& operator = (cosmicAnalysis const&)	    = delete;
             cosmicAnalysis& operator = (cosmicAnalysis&&)           = delete;
-
             void beginJob() override;
             void analyze(art::Event const& e) override;
 
         private:
             art::InputTag fMCParticleTag;
-	    art::InputTag fTPLabel;
-	    art::InputTag fTALabel;
-	    TTree* fTree;
-	    TTree* fTreeTP;
-	    TTree* fTreeTA;
+	        art::InputTag fTPLabel;
+	        art::InputTag fTALabel;
+            TTree* fTree;
+	        TTree* fTreeTP;
+	        TTree* fTreeTA;
+            geo::WireReadoutGeom const& fWireReadoutGeom=art::ServiceHandle<geo::WireReadout>()->Get();
 
             //recording data
             int fRun;
@@ -207,23 +207,34 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     std::cout<<"The detector geometry, height: ("<<det_top<<" , "<<det_bottom<<"), Detector Length: ("<<det_front<<" , "<<det_back<<" ). Drift Distance: "<<det_width<<". \n"<<std::endl;
     int primaryCount = 0;
     
+    //Debugginf some of the geometry information
+    std::array<size_t, 3> tpCountPerPlane = {0, 0, 0};
+
+    //
     //TP information extraction
     art::Handle<std::vector<dunedaq::trgdataformats::TriggerPrimitive>> tpHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerPrimitive>>(fTPLabel);
     if (tpHandle.isValid()){
     	for (const dunedaq::trgdataformats::TriggerPrimitive &tp: *tpHandle){
-        fTPTimeStart 	= tp.time_start;
-        fTPTimePeak  	= tp.time_peak;
-        fTPTimeOverThreshold 	= tp.time_over_threshold;
-        fTPChannel		= tp.channel;
-        fTPADCPeak 		= tp.adc_peak;
-        fTPDetId		= tp.detid;
-        fTreeTP->Fill();
+            fTPTimeStart 	= tp.time_start;
+            fTPTimePeak  	= tp.time_peak;
+            fTPTimeOverThreshold 	= tp.time_over_threshold;
+            fTPChannel		= tp.channel;
+
+            int plane = fWireReadoutGeom.View(tp.channel);            
+            if(plane<0 || plane >2){
+                mf::LogWarning("CosmicAnalysis")<<"There should not be more than given plane";
+                continue;
+            }
+            ++tpCountPerPlane[plane];
+            fTPADCPeak 		= tp.adc_peak;
+            fTPDetId		= tp.detid;
+            fTreeTP->Fill();
       }
     }
     else{
       mf::LogWarning("TP Analysis")<< "No Trigger Primitive Found:  "<<fTPLabel<<"..........\n";
     }
-
+    mf::LogInfo("CosmicAnalysis")<< "TP counts per plane → "<< "U=" << tpCountPerPlane[0] << ", V=" << tpCountPerPlane[1] << ", "<< "Z=" << tpCountPerPlane[2];
 
     //flushing out the Trigger Activity information
     art::Handle<std::vector<dunedaq::trgdataformats::TriggerActivityData>> taHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivityData>>(fTALabel);

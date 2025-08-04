@@ -5,9 +5,8 @@
 
 process_name: cosmicAnalysisProcess
 services:{
-    TFileService:       {fileName:"cosmic_analysis.root"}
     @table::protodunevd_simulation_services
-    
+    TFileService:       {fileName:"cosmic_analysis.root"}
     TimeTracker:        @local::dune_time_tracker
     MemoryTracker:      @local::dune_memory_tracker
     message:            @local::standard_info
@@ -63,9 +62,9 @@ physics:
         cosmicAnalysis:{
             module_type:        "cosmicAnalysis"
             MCParticleTag:      "largeant"
-	    TPLabel:		"tpmakerTPC"
-	    TALabel:		"tamaker"
-	}
+	        TPLabel:		"tpmakerTPC"
+	        TALabel:		"tamaker"
+        }
     }
     trigger_sim:		[tamaker]
     analysis_path:              [cosmicAnalysis]
