@@ -183,18 +183,31 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     std::cout<<"\n--------------------------------------Cosmic Track Analysis--------------------------------------\n"<<std::endl;
     std::cout<<"Detector Name: "<<fDetectorName<<" .\n"<<std::endl;
 
+
     //Testing with getting detector geometry and bound
     double det_top      = -9999.0;
     double det_bottom   =  9999.0;
     double det_front    =  9999.0;
     double det_back     =  -9999.0;
     double det_width    =  0.0;
+    std::map<unsigned int, unsigned int> apa_to_crp_map;
     for(geo::TPCGeo const& TPC: geom->Iterate<geo::TPCGeo>()){
          auto const center   = TPC.GetCenter();
          double tpc_top      = center.Y()+TPC.HalfHeight();
          double tpc_bottom   = center.Y()-TPC.HalfHeight();
          double tpc_front    = center.Z()-TPC.HalfLength();
          double tpc_back     = center.Z()+TPC.HalfLength();
+         unsigned int apa_number = TPC.ID().TPC;
+         unsigned int final_crp_number = 0;
+         if (center.X()>0){//top of the detector
+            if(center.Y()<0)    final_crp_number = 2;
+            else                final_crp_number = 3;
+         }
+         else{ //bottom crp
+            if(center.Y()<0)    final_crp_number    = 5;
+            else                final_crp_number    = 4;
+         }
+         apa_to_crp_map[apa_number] = final_crp_number;
          if(tpc_top      >   det_top)    det_top     = tpc_top;
          if(tpc_bottom   <   det_bottom) det_bottom  = tpc_bottom;
          if(tpc_front    <   det_front)  det_front   = tpc_front;
@@ -205,6 +218,28 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     fDetLength  	= std::abs(det_front)+std::abs(det_back);
     fDetHalfWidth 	= det_width;
     std::cout<<"The detector geometry, height: ("<<det_top<<" , "<<det_bottom<<"), Detector Length: ("<<det_front<<" , "<<det_back<<" ). Drift Distance: "<<det_width<<". \n"<<std::endl;
+
+    size_t nChannels    = fWireReadoutGeom.Nchannels();
+    std::map<unsigned int, std::vector<raw::ChannelID_t>> crp_channel_counts;
+    mf::LogInfo("CosmicAnalysis")<<"Mapping all "<<nChannels<<" channels to crps.....\n";
+    for (raw::ChannelID_t channel =0; channel<nChannels; ++channel){
+        std::vector<geo::WireID> wireIDs    = fWireReadoutGeom.ChannelToWire(channel);
+        if(wireIDs.empty()){
+            continue;        
+        }
+        unsigned int apa_number             = wireIDs[0].TPC;
+        if(apa_to_crp_map.count(apa_number)){
+            unsigned int final_crp_number   = apa_to_crp_map.at(apa_number);
+            crp_channel_counts[final_crp_number].push_back(channel);
+        }
+    }
+    mf::LogInfo("CosmicAnalysis") << "--- Channel Count per CRP ---";
+    for (const auto& [crp, channel] : crp_channel_counts) {
+        if (channel.empty()) continue;
+        raw::ChannelID_t min_channel = channel.front();
+        raw::ChannelID_t max_channel = channel.back();
+        mf::LogInfo("CosmicAnalysis") << "CRP " << crp << " has channel from: " << min_channel << " to "<<max_channel<<". Total Channel: 3072";
+    }
     int primaryCount = 0;
     
     //Debugginf some of the geometry information
