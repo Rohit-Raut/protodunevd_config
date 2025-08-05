@@ -6,7 +6,10 @@
 process_name: cosmicAnalysisProcess
 services:{
     @table::protodunevd_simulation_services
-    TFileService:       {fileName:"cosmic_analysis.root"}
+    TFileService:       {
+        fileName:"cosmic.root"
+        closeFileFast:true
+    }
     TimeTracker:        @local::dune_time_tracker
     MemoryTracker:      @local::dune_memory_tracker
     message:            @local::standard_info

@@ -56,39 +56,38 @@ namespace duneana{
             double fDetHalfHeight;
             double fDetLength;
 
-            int fPrimPdg;
-            double fPrimE;
-            double fPrimVx, fPrimVy, fPrimVz;
-            double fPrimPx, fPrimPy, fPrimPz;
-
-            double fTrackLengthInTPC;
-            double fTPCEntryX, fTPCEntryY, fTPCEntryZ;
-            double fTPCExitX, fTPCExitY, fTPCExitZ;
-
+            int fNPrimaries;
+            std::vector<int> fPrimPdg;
+            std::vector<double> fPrimE;
+            std::vector<double> fPrimVx, fPrimVy, fPrimVz;
+            std::vector<double> fPrimPx, fPrimPy, fPrimPz;
+            std::vector<double> fTrackLengthInTPC;
+            std::vector<double> fTPCEntryX, fTPCEntryY, fTPCEntryZ;
+            std::vector<double> fTPCExitX, fTPCExitY, fTPCExitZ;
             int fNSecondaries;
             std::vector<int>    fSecondaryPdg;
             std::vector<double> fSecondaryE;
             std::vector<double> fSecondaryVx, fSecondaryVy, fSecondaryVz;
 		
-	    //TP data storage
-	    double fTPTimeStart;
-	    double fTPTimePeak;
-	    double fTPTimeOverThreshold;
-	    int fTPChannel;
-	    double fTPADCPeak;
-	    double fTPADCSum;
-	    double fTPDetId;
-
-	    //TA information
-	    int fTANTPs;
-	    double fTATimeStart;
-	    double fTATimeEnd;
-	    double fTATimePeak;
-	    double fTAADCPeak;
-	    double fTAADCSum;
-	    int fTAChannelStart;
-	    int fTAChannelEnd;
-	    int fTAChannelPeak;
+    	    //TP data storage
+    	    double fTPTimeStart;
+    	    double fTPTimePeak;
+    	    double fTPTimeOverThreshold;
+    	    int    fTPChannel;
+    	    double fTPADCPeak;
+    	    double fTPADCSum;
+    	    double fTPDetId;
+    
+    	    //TA information
+    	    int fTANTPs;
+    	    double fTATimeStart;
+    	    double fTATimeEnd;
+    	    double fTATimePeak;
+    	    double fTAADCPeak;
+    	    double fTAADCSum;
+    	    int fTAChannelStart;
+    	    int fTAChannelEnd;
+    	    int fTAChannelPeak;
     };
 }
 duneana::cosmicAnalysis::cosmicAnalysis(fhicl::ParameterSet const& p)
@@ -112,23 +111,26 @@ void duneana::cosmicAnalysis::beginJob(){
     fTree->Branch("detHalfHeight",  &fDetHalfHeight,    "detHalfHeight/D");
     fTree->Branch("detLength",      &fDetLength,        "detLength/D");
 
-    fTree->Branch("primPdg",    &fPrimPdg,          "primPdg/I");
-    fTree->Branch("primE",      &fPrimE,            "primE/D");
-    fTree->Branch("primVx",     &fPrimVx,           "primVx/D");
-    fTree->Branch("primVy",     &fPrimVy,           "primVy/D");
-    fTree->Branch("primVz",     &fPrimVz,           "primVz/D");
-
-    fTree->Branch("primPx",     &fPrimPx,           "primPx/D");
-    fTree->Branch("primPy",     &fPrimPy,           "primPy/D");
-    fTree->Branch("primPz",     &fPrimPz,           "primPz/D");
     
-    fTree->Branch("tracklength",&fTrackLengthInTPC, "tracklength/D");
-    fTree->Branch("tpcEntryX",  &fTPCEntryX,        "tpcEntryX/D");
-    fTree->Branch("tpcEntryY",  &fTPCEntryY,        "tpcEntryY/D");
-    fTree->Branch("tpcEntryZ",  &fTPCEntryZ,        "tpcEntryZ/D");
-    fTree->Branch("tpcExitX",   &fTPCExitX,         "tpcExitX/D");
-    fTree->Branch("tpcExitY",   &fTPCExitY,         "tpcExitY/D");
-    fTree->Branch("tpcExitZ",   &fTPCExitZ,         "tpcExitZ/D");
+    // Store ALL primaries as vectors
+    fTree->Branch("nPrimaries", &fNPrimaries, "nPrimaries/I");
+    fTree->Branch("primPdg",    &fPrimPdg);
+    fTree->Branch("primE",      &fPrimE);
+    fTree->Branch("primVx",     &fPrimVx);
+    fTree->Branch("primVy",     &fPrimVy);
+    fTree->Branch("primVz",     &fPrimVz);
+    fTree->Branch("primPx",     &fPrimPx);
+    fTree->Branch("primPy",     &fPrimPy);
+    fTree->Branch("primPz",     &fPrimPz);
+    fTree->Branch("tracklength",&fTrackLengthInTPC);
+    fTree->Branch("tpcEntryX",  &fTPCEntryX);
+    fTree->Branch("tpcEntryY",  &fTPCEntryY);
+    fTree->Branch("tpcEntryZ",  &fTPCEntryZ);
+    fTree->Branch("tpcExitX",   &fTPCExitX);
+    fTree->Branch("tpcExitY",   &fTPCExitY);
+    fTree->Branch("tpcExitZ",   &fTPCExitZ);
+
+
 
     fTree->Branch("nSecondaries",   &fNSecondaries, "nSecondaries/I");
     fTree->Branch("secondaryPdg",   &fSecondaryPdg);
@@ -233,13 +235,13 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
             crp_channel_counts[final_crp_number].push_back(channel);
         }
     }
-    mf::LogInfo("CosmicAnalysis") << "--- Channel Count per CRP ---";
-    for (const auto& [crp, channel] : crp_channel_counts) {
-        if (channel.empty()) continue;
-        raw::ChannelID_t min_channel = channel.front();
-        raw::ChannelID_t max_channel = channel.back();
-        mf::LogInfo("CosmicAnalysis") << "CRP " << crp << " has channel from: " << min_channel << " to "<<max_channel<<". Total Channel: 3072";
-    }
+    //mf::LogInfo("CosmicAnalysis") << "--- Channel Count per CRP ---";
+    //for (const auto& [crp, channel] : crp_channel_counts) {
+    //    if (channel.empty()) continue;
+    //    raw::ChannelID_t min_channel = channel.front();
+    //    raw::ChannelID_t max_channel = channel.back();
+    //    mf::LogInfo("CosmicAnalysis") << "CRP " << crp << " has channel from: " << min_channel << " to "<<max_channel<<". Total Channel: 3072";
+    //}
     int primaryCount = 0;
     
     //Debugginf some of the geometry information
@@ -293,28 +295,34 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
       mf::LogWarning("TA analysis")<<"No Trigger Activity Detected: "<<fTALabel<<" .........\n";
     }
 
-
+    fPrimPdg.clear();
+    fPrimE.clear();
+    fPrimVx.clear(); fPrimVy.clear(); fPrimVz.clear();
+    fPrimPx.clear(); fPrimPy.clear(); fPrimPz.clear();
+    fTrackLengthInTPC.clear();
+    fTPCEntryX.clear(); fTPCEntryY.clear(); fTPCEntryZ.clear();
+    fTPCExitX.clear(); fTPCExitY.clear(); fTPCExitZ.clear();
+    fSecondaryPdg.clear();
+    fSecondaryE.clear();
+    fSecondaryVx.clear(); fSecondaryVy.clear(); fSecondaryVz.clear();
+   
     for (auto const& particle: mcParticleList){
 
       if(particle.Mother() ==0)
       {		
         primaryCount++;
-        fSecondaryPdg.clear();
-        fSecondaryE.clear();
-        fSecondaryVx.clear();
-        fSecondaryVy.clear();
-        fSecondaryVz.clear();
+        fPrimPdg.push_back(particle.PdgCode());
+        fPrimE.push_back(particle.E());
+        fPrimVx.push_back(particle.Vx());
+        fPrimVy.push_back(particle.Vy());
+        fPrimVz.push_back(particle.Vz());
+        fPrimPx.push_back(particle.Px());
+        fPrimPy.push_back(particle.Py());
+        fPrimPz.push_back(particle.Pz());
 
-        fPrimPdg    = particle.PdgCode();
-        fPrimE      = particle.E();
-        fPrimVx     = particle.Vx();
-        fPrimVy     = particle.Vy();
-        fPrimVz     = particle.Vz();
-        fPrimPx     = particle.Px();
-        fPrimPy     = particle.Py();
-        fPrimPz     = particle.Pz();
 
-        fTrackLengthInTPC       = 0.0;
+
+        double tracklength       = 0.0;
         TVector3 tpcEntryPoint(-999,-999,-999), tpcExitPoint(-999,-999,-999);
 
         bool enterTPC           = false;
@@ -338,34 +346,40 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
           }
         }
         if(enterTPC){
-          fTPCEntryX          = tpcEntryPoint.X();
-          fTPCEntryY          = tpcEntryPoint.Y();
-          fTPCEntryZ          = tpcEntryPoint.Z();
-          fTPCExitX           = tpcExitPoint.X();
-          fTPCExitY           = tpcExitPoint.Y();
-          fTPCExitZ           = tpcExitPoint.Z();
-          fTrackLengthInTPC     =(tpcExitPoint-tpcEntryPoint).Mag();
-
+            fTPCEntryX.push_back(tpcEntryPoint.X());
+            fTPCEntryY.push_back(tpcEntryPoint.Y());
+            fTPCEntryZ.push_back(tpcEntryPoint.Z());
+            fTPCExitX.push_back(tpcExitPoint.X());
+            fTPCExitY.push_back(tpcExitPoint.Y());
+            fTPCExitZ.push_back(tpcExitPoint.Z());
+            tracklength     =(tpcExitPoint-tpcEntryPoint).Mag();
+            fTrackLengthInTPC.push_back(tracklength);
         }
-        else{
-          fTPCEntryX  = -1; fTPCEntryY    = -1; fTPCEntryZ    = -1;
-          fTPCExitX   = -1; fTPCExitY     = -1; fTPCExitZ     = -1;
-        }
+        //else{
+        //    fTPCEntryX.push_back(-999);
+        //    fTPCEntryY.push_back(-999);
+        //    fTPCEntryZ.push_back(-999);
+        //    fTPCExitX.push_back(-999);
+        //    fTPCExitY.push_back(-999);
+        //    fTPCExitZ.push_back(-999);
+        //    fTrackLengthInTPC.push_back(-999);
+        //}
+    
         int primTrackId = particle.TrackId();
         for(auto const& secondary: mcParticleList){
           if(secondary.Mother()==primTrackId){
-            fSecondaryPdg.push_back(secondary.PdgCode());
-            fSecondaryE.push_back(secondary.E());
-            fSecondaryVx.push_back(secondary.Vx());
-            fSecondaryVy.push_back(secondary.Vy());
-            fSecondaryVz.push_back(secondary.Vz());
-          }
-        }
-        fNSecondaries   = fSecondaryPdg.size();
-        fTree->Fill();
-      }
+                    fSecondaryPdg.push_back(secondary.PdgCode());
+                    fSecondaryE.push_back(secondary.E());
+                    fSecondaryVx.push_back(secondary.Vx());
+                    fSecondaryVy.push_back(secondary.Vy());
+                    fSecondaryVz.push_back(secondary.Vz());
+                }
+            }
+        }  
     }
     std::cout<<"\n Number of Primary Recorded: "<<primaryCount<<".\n"<<std::endl;
-
+    fNPrimaries = primaryCount;
+    fNSecondaries = fSecondaryPdg.size();
+    fTree->Fill();
 }
 DEFINE_ART_MODULE(duneana::cosmicAnalysis)
