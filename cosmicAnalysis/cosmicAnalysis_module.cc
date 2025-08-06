@@ -299,6 +299,31 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
             fTPDetId		= tp.detid;
             fTreeTP->Fill();
             
+            auto it = rdMap.find(tp.channel);
+            if(it=rdMap.end()){
+                mf::LogWarning("CosmicAnalysis")<<"No Raw Digit found"<< tp.channel;
+            }
+            auto const& rd = *it->second;
+            std::vector<short> wf(rd.Samples());
+            raw::Uncompress(rd.ADCs(), wf, rd.GetPedestal(), rd.Compression());
+            int wstart  = std::max(0, tp.time_start);
+            int wend    = std::min((int)wf.size()-1, tp.time_start+tp.time_over_threshold);
+            double rawSum = 0;
+            double rawMax = std::numeric_limit<double>::lowest();
+            double pedestal = rd.GetPedestal();
+            for(int t=wstart; t<wend; ++t){
+                double v = wf[t] - pedestal;
+                rawSum +=v;
+                rawMax  = std::max(rawMax, v);
+
+            }
+            fRawTimeStart   = wstart;
+            fRawTimeEnd     = wend;
+            fRawAdcIntegral = rawSum;
+            fRawAdcPeak     = rawMax;
+            fRawChannel     = tp.channel;
+            fRawPlane       = plane;
+            
 
         }
     }
