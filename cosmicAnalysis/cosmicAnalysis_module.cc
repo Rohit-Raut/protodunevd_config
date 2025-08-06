@@ -260,12 +260,28 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     }
     int primaryCount = 0;
     
+    auto rawDigitHandle = *e.getValidHandle<std::vector<raw::RawDigit>>(fRawDigitLabel);
+    std::unordered_map<int, const raw::RawDigit*> rdMap;
+    rdMap.reserve(rawDigitHandle.size());
+    for (auto const& rd:rawDigitHandle){
+        rdMap[rd.Channel()] = &rd;
+    }
+
+
     //Debugginf some of the geometry information
     std::array<size_t, 3> tpCountPerPlane = {0, 0, 0};
-
-    //
     //TP information extraction
     art::Handle<std::vector<dunedaq::trgdataformats::TriggerPrimitive>> tpHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerPrimitive>>(fTPLabel);
+    std::array<int, 3> rawCountPerPlane = {0, 0, 0};
+    for (auto const &rd: rawDigitHandle){
+        int p = fWireReadoutGeom.View(rd.Channel());
+        if(p>=0 && p<3) ++rawCountPerPlane[p];
+    }
+    mf::LogInfo("CosmicAnalysis")<<"Raw Digit data found U-> "<<rawCountPerPlane[0]<< ", V-> "<<rawCountPerPlane[1]<<", Z-> "<<rawCountPerPlane[2];
+
+    if(rawCountPerPlane[0]==0 || rawCountPerPlane[1] ==0){
+        mf::LogWarning("CosmicAnalysis")<<"U/V raw digit missing. Debug the tpcrawdecoder fcl.";
+    }
     if (tpHandle.isValid()){
     	for (const dunedaq::trgdataformats::TriggerPrimitive &tp: *tpHandle){
             fTPTimeStart 	= tp.time_start;
@@ -282,12 +298,14 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
             fTPADCPeak 		= tp.adc_peak;
             fTPDetId		= tp.detid;
             fTreeTP->Fill();
-      }
+            
+
+        }
     }
     else{
       mf::LogWarning("TP Analysis")<< "No Trigger Primitive Found:  "<<fTPLabel<<"..........\n";
     }
-    //mf::LogInfo("CosmicAnalysis")<< "TP counts per plane → "<< "U=" << tpCountPerPlane[0] << ", V=" << tpCountPerPlane[1] << ", "<< "Z=" << tpCountPerPlane[2];
+    mf::LogInfo("CosmicAnalysis")<< "TP counts per plane → "<< "U=" << tpCountPerPlane[0] << ", V=" << tpCountPerPlane[1] << ", "<< "Z=" << tpCountPerPlane[2];
 
     //flushing out the Trigger Activity information
     art::Handle<std::vector<dunedaq::trgdataformats::TriggerActivityData>> taHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivityData>>(fTALabel);
@@ -322,30 +340,30 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     }
     mf::LogInfo("CosmicAnalysis")<<"TA Count per plane -> U: "<<taCountPerPlane[0]<<", V: "<<taCountPerPlane[1]<<" , Z: "<<taCountPerPlane[2]; 
 
-    auto rawDigitHandle = e.getValidHandle<std::vector<raw::RawDigit>>(fRawDigitLabel);
-    if(rawDigitHandle.isValid()){
-        mf::LogInfo("CosmicAnalysis")<<"Found "<<rawDigitHandle->size()<<" RawDigit in this event.";
-        fRaw_nChan      = rawDigitHandle->size();
-        int chan_idx    = 0;
-        for (raw::RawDigit const& digit: *rawDigitHandle){
-            if(chan_idx>=kMaxRawChannels){
-                mf::LogWarning("CosmicAnalysis")<<"More channels than max channels currently set at 12k";
-                break;
-            }
-            uint32_t chan   = digit.Channel();
-            fRaw_channel[chan_idx]  = chan;
-            fRaw_plane[chan_idx]    = fWireReadoutGeom.View(chan);
-            std::vector<short> uncompressed(digit.Samples());
-            raw::Uncompress(digit.ADCs(), uncompressed,digit.GetPedestal(), digit.Compression());
-            for(size_t tick=0; tick<uncompressed.size(); ++tick){
-                if(tick>=kMaxRawTicks) break;
-                fRaw_ADCs[chan_idx][tick]   = uncompressed[tick];
-            }
-            chan_idx++;
-        }
+    //auto rawDigitHandle = e.getValidHandle<std::vector<raw::RawDigit>>(fRawDigitLabel);
+    //if(rawDigitHandle.isValid()){
+    //    mf::LogInfo("CosmicAnalysis")<<"Found "<<rawDigitHandle->size()<<" RawDigit in this event.";
+    //    fRaw_nChan      = rawDigitHandle->size();
+    //    int chan_idx    = 0;
+    //    for (raw::RawDigit const& digit: *rawDigitHandle){
+    //        if(chan_idx>=kMaxRawChannels){
+    //            mf::LogWarning("CosmicAnalysis")<<"More channels than max channels currently set at 12k";
+    //            break;
+    //        }
+    //        uint32_t chan   = digit.Channel();
+    //        fRaw_channel[chan_idx]  = chan;
+    //        fRaw_plane[chan_idx]    = fWireReadoutGeom.View(chan);
+    //        std::vector<short> uncompressed(digit.Samples());
+    //        raw::Uncompress(digit.ADCs(), uncompressed,digit.GetPedestal(), digit.Compression());
+    //        for(size_t tick=0; tick<uncompressed.size(); ++tick){
+    //            if(tick>=kMaxRawTicks) break;
+    //            fRaw_ADCs[chan_idx][tick]   = uncompressed[tick];
+    //        }
+    //        chan_idx++;
+    //    }
 
-    }
-    fRawDigitTree->Fill();
+    //}
+    //fRawDigitTree->Fill();
     
 
 
