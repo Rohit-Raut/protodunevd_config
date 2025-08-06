@@ -16,6 +16,8 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/Geometry/WireReadout.h"
+#include "lardata/Utilities/LArFFT.h"
+#include "lardataobj/RawData/raw.h"
 // ROOT includes
 #include "TTree.h"
 #include "TLorentzVector.h"
@@ -24,6 +26,9 @@
 #include <vector>
 #include <string>
 #include <cmath>
+
+constexpr int kMaxRawChannels   = 13000;
+constexpr int kMaxRawTicks      = 9600;
 
 namespace duneana{
     class cosmicAnalysis: public art::EDAnalyzer{
@@ -35,14 +40,16 @@ namespace duneana{
             cosmicAnalysis& operator = (cosmicAnalysis&&)           = delete;
             void beginJob() override;
             void analyze(art::Event const& e) override;
-
+            void reset();
         private:
             art::InputTag fMCParticleTag;
 	        art::InputTag fTPLabel;
 	        art::InputTag fTALabel;
+            art::InputTag fRawDigitLabel;
             TTree* fTree;
 	        TTree* fTreeTP;
 	        TTree* fTreeTA;
+            TTree* fRawDigitTree;
             geo::WireReadoutGeom const& fWireReadoutGeom=art::ServiceHandle<geo::WireReadout>()->Get();
 
             //recording data
@@ -88,13 +95,22 @@ namespace duneana{
     	    int fTAChannelStart;
     	    int fTAChannelEnd;
     	    int fTAChannelPeak;
+
+
+
+            //Storing the raw didigt data
+            int fRaw_nChan;
+            int fRaw_channel[kMaxRawChannels];
+            int fRaw_plane[kMaxRawChannels];
+            int fRaw_ADCs[kMaxRawChannels][kMaxRawTicks];
     };
 }
 duneana::cosmicAnalysis::cosmicAnalysis(fhicl::ParameterSet const& p)
     :EDAnalyzer(p),
     fMCParticleTag(p.get<art::InputTag>("MCParticleTag")),
     fTPLabel(p.get<art::InputTag>("TPLabel")),
-    fTALabel(p.get<art::InputTag>("TALabel"))
+    fTALabel(p.get<art::InputTag>("TALabel")),
+    fRawDigitLabel(p.get<art::InputTag>("RawDigitLabel"))
 {}
 
 
@@ -165,7 +181,14 @@ void duneana::cosmicAnalysis::beginJob(){
     fTreeTA->Branch("TAChannelEnd",	&fTAChannelEnd,  "TAChannelEnd/D");
     fTreeTA->Branch("TAChannelPeak", 	&fTAChannelPeak ,"TAChannelPeak/D");
 
-
+    fRawDigitTree = tfs->make<TTree>("rawDigitTree", "Raw Digit Waveform");
+    fRawDigitTree->Branch("event",  &fEvent,    "event/I");
+    fRawDigitTree->Branch("run",    &fRun,      "run/I");
+    fRawDigitTree->Branch("subrun", &fSubRun,   "subrun/I");
+    fRawDigitTree->Branch("nChan",  &fRaw_nChan,"nChan/I");
+    fRawDigitTree->Branch("channel",&fRaw_channel,     "channel[nChan]/I");
+    fRawDigitTree->Branch("plane",  &fRaw_plane,    "plane[nChan]/I");
+    fRawDigitTree->Branch("adcs",   &fRaw_ADCs,     Form("adcs[nChan][%d]/S", kMaxRawTicks));
 
 }
 
@@ -174,7 +197,7 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     fRun    = e.run();
     fSubRun = e.subRun();
     fEvent  = e.id().event();
-    
+    reset(); 
     art::ServiceHandle<geo::Geometry> geom;
     // geo::BoxBoundedGeo active_volume = geom->ActiveBoundedBox();
     fDetectorName = geom->DetectorName();
@@ -235,13 +258,6 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
             crp_channel_counts[final_crp_number].push_back(channel);
         }
     }
-    //mf::LogInfo("CosmicAnalysis") << "--- Channel Count per CRP ---";
-    //for (const auto& [crp, channel] : crp_channel_counts) {
-    //    if (channel.empty()) continue;
-    //    raw::ChannelID_t min_channel = channel.front();
-    //    raw::ChannelID_t max_channel = channel.back();
-    //    mf::LogInfo("CosmicAnalysis") << "CRP " << crp << " has channel from: " << min_channel << " to "<<max_channel<<". Total Channel: 3072";
-    //}
     int primaryCount = 0;
     
     //Debugginf some of the geometry information
@@ -271,10 +287,11 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     else{
       mf::LogWarning("TP Analysis")<< "No Trigger Primitive Found:  "<<fTPLabel<<"..........\n";
     }
-    mf::LogInfo("CosmicAnalysis")<< "TP counts per plane → "<< "U=" << tpCountPerPlane[0] << ", V=" << tpCountPerPlane[1] << ", "<< "Z=" << tpCountPerPlane[2];
+    //mf::LogInfo("CosmicAnalysis")<< "TP counts per plane → "<< "U=" << tpCountPerPlane[0] << ", V=" << tpCountPerPlane[1] << ", "<< "Z=" << tpCountPerPlane[2];
 
     //flushing out the Trigger Activity information
     art::Handle<std::vector<dunedaq::trgdataformats::TriggerActivityData>> taHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivityData>>(fTALabel);
+    std::array<size_t, 3> taCountPerPlane = {};
     if(taHandle.isValid()){
       for (const auto& ta: *taHandle){
         //fTANTPs 	= ta.num_tps;
@@ -286,6 +303,15 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
         fTAChannelStart = ta.channel_start;
         fTAChannelEnd	= ta.channel_end;
         fTAChannelPeak	= ta.channel_peak;
+        int planeno = fWireReadoutGeom.View(ta.channel_start);
+        if(planeno<0 || planeno>2){
+            mf::LogWarning("CosmicAnalysis")<<"Thres is issue with plane reading";
+            continue;
+        }
+        ++taCountPerPlane[planeno];
+        
+    
+
         fTreeTA->Fill();
 
 
@@ -294,6 +320,34 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     else{
       mf::LogWarning("TA analysis")<<"No Trigger Activity Detected: "<<fTALabel<<" .........\n";
     }
+    mf::LogInfo("CosmicAnalysis")<<"TA Count per plane -> U: "<<taCountPerPlane[0]<<", V: "<<taCountPerPlane[1]<<" , Z: "<<taCountPerPlane[2]; 
+
+    auto rawDigitHandle = e.getValidHandle<std::vector<raw::RawDigit>>(fRawDigitLabel);
+    if(rawDigitHandle.isValid()){
+        mf::LogInfo("CosmicAnalysis")<<"Found "<<rawDigitHandle->size()<<" RawDigit in this event.";
+        fRaw_nChan      = rawDigitHandle->size();
+        int chan_idx    = 0;
+        for (raw::RawDigit const& digit: *rawDigitHandle){
+            if(chan_idx>=kMaxRawChannels){
+                mf::LogWarning("CosmicAnalysis")<<"More channels than max channels currently set at 12k";
+                break;
+            }
+            uint32_t chan   = digit.Channel();
+            fRaw_channel[chan_idx]  = chan;
+            fRaw_plane[chan_idx]    = fWireReadoutGeom.View(chan);
+            std::vector<short> uncompressed(digit.Samples());
+            raw::Uncompress(digit.ADCs(), uncompressed,digit.GetPedestal(), digit.Compression());
+            for(size_t tick=0; tick<uncompressed.size(); ++tick){
+                if(tick>=kMaxRawTicks) break;
+                fRaw_ADCs[chan_idx][tick]   = uncompressed[tick];
+            }
+            chan_idx++;
+        }
+
+    }
+    fRawDigitTree->Fill();
+    
+
 
     fPrimPdg.clear();
     fPrimE.clear();
@@ -381,5 +435,27 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     fNPrimaries = primaryCount;
     fNSecondaries = fSecondaryPdg.size();
     fTree->Fill();
+
+
+
 }
+
+
+
+
+
+
+void duneana::cosmicAnalysis::reset(){
+    fRaw_nChan = 0;
+    for(int i =0; i<kMaxRawChannels;++i){
+        fRaw_channel[i] = -999;
+        fRaw_plane  [i] = -999;
+        for(int j=0; j<kMaxRawTicks; ++j){
+            fRaw_ADCs[i][j] = 0;
+        }
+    }
+}
+
+
+
 DEFINE_ART_MODULE(duneana::cosmicAnalysis)

@@ -65,8 +65,9 @@ physics:
         cosmicAnalysis:{
             module_type:        "cosmicAnalysis"
             MCParticleTag:      "largeant"
-	        TPLabel:		"tpmakerTPC"
-	        TALabel:		"tamaker"
+	        TPLabel:		    "tpmakerTPC"
+	        TALabel:		    "tamaker"
+            RawDigitLabel:      "tpcrawdecoder:daq"
         }
     }
     trigger_sim:		[tamaker]
