@@ -7,7 +7,7 @@ process_name: cosmicAnalysisProcess
 services:{
     @table::protodunevd_simulation_services
     TFileService:       {
-        fileName:"cosmic.root"
+        fileName:"cosmic_TPat60ADC.root"
         closeFileFast:true
     }
     TimeTracker:        @local::dune_time_tracker
@@ -19,47 +19,85 @@ source:
 {
     module_type: RootInput
     maxEvents: -1
-    fileNames:["/exp/dune/app/users/rraut/vd_cosmic/work/gen_cosmic_stage1_stage2_detsim.root"]
+    fileNames:["/exp/dune/app/users/rraut/vd_cosmic/work/detsim_60threshold.root"]
 }
 
 physics:
 {
     producers:{
-    	tamaker:{
-		module_type: 	"TriggerActivityMakerTPC"
-		tp_tag:	"tpmakerTPC"
-		algorithm:	"TriggerActivityMakerADCSimpleWindowPlugin"
-		algconfig_plane0:{
-			window_length:	1000
-			adc_threshold:	20
-		}
-		
-		algconfig_plane1:{
-			window_length:	1000
-			adc_threshold:	20
-		}		
-		algconfig_plane2:{
-			window_length:	1000
-			adc_threshold:	20
-		}
-		algconfig_plane3:{
-			window_length:	1000
-			adc_threshold:	20
-		}
-		mergecollwires:	true
-		flush:		true
-		print_tp_info:	false
-		verbosity:	1
-		#trigger_activity_maker_config:{
-		#	algorithm:	"ADCSimpleWindow"
-		#	adcsimplewindow_config:{
-		#		window_time: 		1000
-		#		channel_distance_cut:	3
-		#		add_dummy_tps:		false
-		#	}
-		#}
-	}
-		
+        tamaker:{
+            module_type:TriggerPrimitiveMakerTPC
+            rawdigit_tag:   "tpcrawdecoder:daq"
+            tpalg:{
+                tool_type:  TPAlgTPCSimpleThreshold
+                verbosity: 0
+                threshold_tpg_plane0:   1
+                threshold_tpg_plane1:   1
+                threshold_tpg_plane2:   1
+            }
+        }
+        #tpmakerU: {
+        #    module_type:   "TriggerPrimitiveMakerTPC"
+        #    rawdigit_tag:   "tpcrawdecoder:daq"
+        #    ChannelGroup:  {plane:0}  # U plane
+        #    tpalg:{
+        #        tool_type: "ADCSimpleThreshold"
+        #        Threshold:     5
+        #    }
+        #}
+        #tpmakerV: {
+        #    module_type:   "TriggerPrimitiveMakerTPC"
+        #    rawdigit_tag:   "tpcrawdecoder:daq"
+        #    ChannelGroup:  {plane:1}  # V plane
+        #    tpalg:{
+        #        tool_type: "ADCSimpleThreshold"
+        #        Threshold:     5
+        #    }
+        #}
+        #tpmakerZ: {
+        #    module_type:   "TriggerPrimitiveMakerTPC"
+        #    rawdigit_tag:   "tpcrawdecoder:daq"
+        #    ChannelGroup:  {plane:2}  # Z (collection) plane
+        #    tplag:{
+        #        tool_type: "ADCSimpleThreshold"
+        #        Threshold:     20
+        #    }
+        #}
+
+
+
+    	#tamaker:{
+    	#	module_type: 	"TriggerActivityMakerTPC"
+    	#	rawdigit_tag:	"tpcrawdecoder:daq"
+    	#	tp_tag:         ["tpmakerU", "tpmakerV", "tpmakerZ"]
+        #    algorithm:	"TriggerActivityMakerADCSimpleWindowPlugin"
+    	#	algconfig_plane0:{
+    	#		window_length:	1000
+    	#		adc_threshold:	5
+    	#	}
+    	#	
+    	#	algconfig_plane1:{
+    	#		window_length:	1000
+    	#		adc_threshold:	5
+    	#	}		
+    	#	algconfig_plane2:{
+    	#		window_length:	1000
+    	#		adc_threshold:	20
+    	#	}
+    	#	mergecollwires:	true
+    	#	flush:		true
+    	#	print_tp_info:	false
+    	#	verbosity:	1
+    	#	#trigger_activity_maker_config:{
+    	#	#	algorithm:	"ADCSimpleWindow"
+    	#	#	adcsimplewindow_config:{
+    	#	#		window_time: 		1000
+    	#	#		channel_distance_cut:	3
+    	#	#		add_dummy_tps:		false
+    	#	#	}
+    	#	#}
+    	#}
+
     }
     analyzers:{
         cosmicAnalysis:{
@@ -70,7 +108,7 @@ physics:
             RawDigitLabel:      "tpcrawdecoder:daq"
         }
     }
-    trigger_sim:		[tamaker]
+    trigger_sim:		        [tamaker]
     analysis_path:              [cosmicAnalysis]
     trigger_paths:              [trigger_sim]
     end_paths:                  [analysis_path]

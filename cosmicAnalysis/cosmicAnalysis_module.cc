@@ -26,7 +26,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
-
+#include <limits>
 constexpr int kMaxRawChannels   = 13000;
 constexpr int kMaxRawTicks      = 9600;
 
@@ -56,7 +56,8 @@ namespace duneana{
             int fRun;
             int fSubRun;
             int fEvent;
-
+            
+            //double rawMax = std::numeric_limits<double>::lowest();
             //just to make sure the detector geometry is fine
             std::string fDetectorName;
             double fDetHalfWidth;
@@ -75,15 +76,16 @@ namespace duneana{
             std::vector<int>    fSecondaryPdg;
             std::vector<double> fSecondaryE;
             std::vector<double> fSecondaryVx, fSecondaryVy, fSecondaryVz;
-		
-    	    //TP data storage
-    	    double fTPTimeStart;
-    	    double fTPTimePeak;
-    	    double fTPTimeOverThreshold;
-    	    int    fTPChannel;
-    	    double fTPADCPeak;
-    	    double fTPADCSum;
-    	    double fTPDetId;
+		    std::vector<int>    fTPCParticlePdg;
+            std::vector<double> fTPCParticleE;
+            //TP data storage
+    	    uint64_t fTPTimeStart;
+    	    uint64_t fTPTimePeak;
+    	    uint64_t fTPTimeOverThreshold;
+    	    uint32_t    fTPChannel;
+    	    uint64_t fTPADCPeak;
+    	    uint64_t fTPADCSum;
+            uint64_t fTPDetId;
     
     	    //TA information
     	    int fTANTPs;
@@ -96,13 +98,16 @@ namespace duneana{
     	    int fTAChannelEnd;
     	    int fTAChannelPeak;
 
-
-
+            
+            int fRawPlane, fRawChannel;
+            int fRawTimeStart, fRawTimeEnd, fRawTimePeak;
+            double fRawAdcPeak, fRawAdcIntegral;
+            double fRawAdc;
             //Storing the raw didigt data
-            int fRaw_nChan;
-            int fRaw_channel[kMaxRawChannels];
-            int fRaw_plane[kMaxRawChannels];
-            int fRaw_ADCs[kMaxRawChannels][kMaxRawTicks];
+           // int fRaw_nChan;
+           // int fRaw_channel[kMaxRawChannels];
+           // int fRaw_plane[kMaxRawChannels];
+           // int fRaw_ADCs[kMaxRawChannels][kMaxRawTicks];
     };
 }
 duneana::cosmicAnalysis::cosmicAnalysis(fhicl::ParameterSet const& p)
@@ -145,7 +150,7 @@ void duneana::cosmicAnalysis::beginJob(){
     fTree->Branch("tpcExitX",   &fTPCExitX);
     fTree->Branch("tpcExitY",   &fTPCExitY);
     fTree->Branch("tpcExitZ",   &fTPCExitZ);
-
+    fTree->Branch("tpcE",       &fTPCParticleE);
 
 
     fTree->Branch("nSecondaries",   &fNSecondaries, "nSecondaries/I");
@@ -154,19 +159,19 @@ void duneana::cosmicAnalysis::beginJob(){
     fTree->Branch("secondaryVx",    &fSecondaryVx);
     fTree->Branch("secondaryVy",    &fSecondaryVy);
     fTree->Branch("secondaryVz",    &fSecondaryVz);
-
+    fTree->Branch("TPCPdg",         &fTPCParticlePdg);
     fTreeTP = tfs->make<TTree>("TP", "analysis");
 
     fTreeTP->Branch("run", 		&fRun, 		"run/I");
     fTreeTP->Branch("subrun", 		&fSubRun, 	"subrun/I");
     fTreeTP->Branch("event", 		&fEvent, 	"event/I");
-    fTreeTP->Branch("TPStart", 		&fTPTimeStart, 	"timestart/D");
-    fTreeTP->Branch("TPPeak", 		&fTPTimePeak, 	"TPPeak/D");
-    fTreeTP->Branch("TPSum", 		&fTPADCSum, 	"TPSum/D");
-    fTreeTP->Branch("TPTimeOverThreshold", &fTPTimeOverThreshold, "TPTimeOverThreshold/D");
-    fTreeTP->Branch("TPChannel", 	&fTPChannel, 	"TPChannel/I");
-    fTreeTP->Branch("TPADCPeak", 	&fTPADCPeak, 	"TPADCPeak/D");
-    fTreeTP->Branch("TPDetId", 		&fTPDetId,	"TPDetId/D");
+    fTreeTP->Branch("TPStart", 		&fTPTimeStart);
+    fTreeTP->Branch("TPPeak", 		&fTPTimePeak);
+    fTreeTP->Branch("TPSum", 		&fTPADCSum);
+    fTreeTP->Branch("TPTimeOverThreshold", &fTPTimeOverThreshold);
+    fTreeTP->Branch("TPChannel", 	&fTPChannel);
+    fTreeTP->Branch("TPADCPeak", 	&fTPADCPeak);
+    fTreeTP->Branch("TPDetId", 		&fTPDetId);
     
     //TA information is also recorded in TPTree
     fTreeTA = tfs->make<TTree>("TA", "analysis");
@@ -185,10 +190,20 @@ void duneana::cosmicAnalysis::beginJob(){
     fRawDigitTree->Branch("event",  &fEvent,    "event/I");
     fRawDigitTree->Branch("run",    &fRun,      "run/I");
     fRawDigitTree->Branch("subrun", &fSubRun,   "subrun/I");
-    fRawDigitTree->Branch("nChan",  &fRaw_nChan,"nChan/I");
-    fRawDigitTree->Branch("channel",&fRaw_channel,     "channel[nChan]/I");
-    fRawDigitTree->Branch("plane",  &fRaw_plane,    "plane[nChan]/I");
-    fRawDigitTree->Branch("adcs",   &fRaw_ADCs,     Form("adcs[nChan][%d]/S", kMaxRawTicks));
+    fRawDigitTree->Branch("plane",  &fRawPlane, "plane/I");
+    fRawDigitTree->Branch("chan",   &fRawChannel, "chan/I");
+    fRawDigitTree->Branch("timestart", &fRawTimeStart,  "timestart/I");
+    fRawDigitTree->Branch("timeend", &fRawTimeEnd,      "timeend/I");
+    fRawDigitTree->Branch("timepeak", &fRawTimePeak,    "timepeak/I");
+    fRawDigitTree->Branch("ADCIntegral", &fRawAdcIntegral, "ADCIntegral/D");
+    fRawDigitTree->Branch("ADCPeak",    &fRawAdcPeak,       "ADCPeak/D");
+    fRawDigitTree->Branch("adcs",       &fRawAdc,           "adcs");
+
+
+    //fRawDigitTree->Branch("nChan",  &fRaw_nChan,"nChan/I");
+    //fRawDigitTree->Branch("channel",&fRaw_channel,     "channel[nChan]/I");
+    //fRawDigitTree->Branch("plane",  &fRaw_plane,    "plane[nChan]/I");
+    //fRawDigitTree->Branch("adcs",   &fRaw_ADCs,     Form("adcs[nChan][%d]/S", kMaxRawTicks));
 
 }
 
@@ -282,48 +297,80 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     if(rawCountPerPlane[0]==0 || rawCountPerPlane[1] ==0){
         mf::LogWarning("CosmicAnalysis")<<"U/V raw digit missing. Debug the tpcrawdecoder fcl.";
     }
+   art::Handle<std::vector<dunedaq::trgdataformats::TriggerActivityData>> taHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivityData>>(fTALabel); 
+    //first try going through all the raw data and then look for the TP and get the raw data at the moment of TP
+   if(taHandle.isValid() && !taHandle->empty()){
+       auto const& tpVec     = *taHandle; 
+       for(auto const& rd: rawDigitHandle){
+            int chan = rd.Channel();
+            int plane = fWireReadoutGeom.View(chan);
+            std::vector<short>wf(rd.Samples());
+            raw::Uncompress(rd.ADCs(), wf, rd.GetPedestal(), rd.Compression());
+            int tpTick  = tpVec.front().time_peak;
+            int halfW   = 100;
+            int start   = std::max(0, tpTick-halfW);
+            int end     = std::min(int(wf.size())-1, tpTick+halfW);
+
+            double ped  = rd.GetPedestal();
+            double sum  = 0;
+            double m    = std::numeric_limits<double>::lowest();
+            for (int t=start; t<=end; ++t){
+                double v= wf[t]-ped;
+                sum    +=v;
+                m       = std::max(m, v);
+            }
+            fRawPlane       = plane;
+            fRawChannel     = chan;
+            fRawTimeStart   = start;
+            fRawTimeEnd     = end;
+            fRawTimePeak    = tpTick;
+            fRawAdcIntegral = sum;
+            fRawAdcPeak     = m;
+            fRawDigitTree->Fill();
+
+        }
+    }
+
+
     if (tpHandle.isValid()){
     	for (const dunedaq::trgdataformats::TriggerPrimitive &tp: *tpHandle){
+            fTPChannel		= tp.channel;
+            int plane = fWireReadoutGeom.View(tp.channel);            
+            if(plane!=2)continue;
             fTPTimeStart 	= tp.time_start;
             fTPTimePeak  	= tp.time_peak;
             fTPTimeOverThreshold 	= tp.time_over_threshold;
-            fTPChannel		= tp.channel;
-
-            int plane = fWireReadoutGeom.View(tp.channel);            
-            if(plane<0 || plane >2){
-                mf::LogWarning("CosmicAnalysis")<<"There should not be more than given plane";
-                continue;
-            }
             ++tpCountPerPlane[plane];
             fTPADCPeak 		= tp.adc_peak;
             fTPDetId		= tp.detid;
             fTreeTP->Fill();
+                         
             
-            auto it = rdMap.find(tp.channel);
-            if(it=rdMap.end()){
-                mf::LogWarning("CosmicAnalysis")<<"No Raw Digit found"<< tp.channel;
-            }
-            auto const& rd = *it->second;
-            std::vector<short> wf(rd.Samples());
-            raw::Uncompress(rd.ADCs(), wf, rd.GetPedestal(), rd.Compression());
-            int wstart  = std::max(0, tp.time_start);
-            int wend    = std::min((int)wf.size()-1, tp.time_start+tp.time_over_threshold);
-            double rawSum = 0;
-            double rawMax = std::numeric_limit<double>::lowest();
-            double pedestal = rd.GetPedestal();
-            for(int t=wstart; t<wend; ++t){
-                double v = wf[t] - pedestal;
-                rawSum +=v;
-                rawMax  = std::max(rawMax, v);
+           // auto it = rdMap.find(tp.channel);
+           // if(it==rdMap.end()){
+           //     mf::LogWarning("CosmicAnalysis")<<"No Raw Digit found"<< tp.channel;
+           // }
+           // auto const& rd = *it->second;
+           // std::vector<short> wf(rd.Samples());
+           // raw::Uncompress(rd.ADCs(), wf, rd.GetPedestal(), rd.Compression());
+           // int wstart  = std::max(0, tp.time_start);
+           // int wend    = std::min((int)wf.size()-1, tp.time_start+tp.time_over_threshold);
+           // double rawSum = 0;
+           // double rawMax = std::numeric_limit<double>::lowest();
+           // double pedestal = rd.GetPedestal();
+           // for(int t=wstart; t<wend; ++t){
+           //     double v = wf[t] - pedestal;
+           //     rawSum +=v;
+           //     rawMax  = std::max(rawMax, v);
 
-            }
-            fRawTimeStart   = wstart;
-            fRawTimeEnd     = wend;
-            fRawAdcIntegral = rawSum;
-            fRawAdcPeak     = rawMax;
-            fRawChannel     = tp.channel;
-            fRawPlane       = plane;
-            
+           // }
+           // fRawTimeStart   = wstart;
+           // fRawTimeEnd     = wend;
+           // fRawAdcIntegral = rawSum;
+           // fRawAdcPeak     = rawMax;
+           // fRawChannel     = tp.channel;
+           // fRawPlane       = plane;
+           // 
 
         }
     }
@@ -333,7 +380,6 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     mf::LogInfo("CosmicAnalysis")<< "TP counts per plane → "<< "U=" << tpCountPerPlane[0] << ", V=" << tpCountPerPlane[1] << ", "<< "Z=" << tpCountPerPlane[2];
 
     //flushing out the Trigger Activity information
-    art::Handle<std::vector<dunedaq::trgdataformats::TriggerActivityData>> taHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivityData>>(fTALabel);
     std::array<size_t, 3> taCountPerPlane = {};
     if(taHandle.isValid()){
       for (const auto& ta: *taHandle){
@@ -394,6 +440,7 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
 
     fPrimPdg.clear();
     fPrimE.clear();
+    fTPCParticlePdg.clear();
     fPrimVx.clear(); fPrimVy.clear(); fPrimVz.clear();
     fPrimPx.clear(); fPrimPy.clear(); fPrimPz.clear();
     fTrackLengthInTPC.clear();
@@ -402,7 +449,7 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     fSecondaryPdg.clear();
     fSecondaryE.clear();
     fSecondaryVx.clear(); fSecondaryVy.clear(); fSecondaryVz.clear();
-   
+    fTPCParticleE.clear(); 
     for (auto const& particle: mcParticleList){
 
       if(particle.Mother() ==0)
@@ -443,13 +490,16 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
           }
         }
         if(enterTPC){
+            fTPCParticlePdg.push_back(particle.PdgCode());
             fTPCEntryX.push_back(tpcEntryPoint.X());
             fTPCEntryY.push_back(tpcEntryPoint.Y());
             fTPCEntryZ.push_back(tpcEntryPoint.Z());
             fTPCExitX.push_back(tpcExitPoint.X());
             fTPCExitY.push_back(tpcExitPoint.Y());
             fTPCExitZ.push_back(tpcExitPoint.Z());
+            fTPCParticleE.push_back(particle.E());
             tracklength     =(tpcExitPoint-tpcEntryPoint).Mag();
+            
             fTrackLengthInTPC.push_back(tracklength);
         }
         //else{
@@ -489,14 +539,21 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
 
 
 void duneana::cosmicAnalysis::reset(){
-    fRaw_nChan = 0;
-    for(int i =0; i<kMaxRawChannels;++i){
-        fRaw_channel[i] = -999;
-        fRaw_plane  [i] = -999;
-        for(int j=0; j<kMaxRawTicks; ++j){
-            fRaw_ADCs[i][j] = 0;
-        }
-    }
+    fRawChannel = 0;
+    fRawChannel = -999;
+    fRawPlane   = -999;
+    fRawAdcIntegral = 0.0;
+    fRawAdcPeak  = 0.0;
+   // for(int i =0; i<kMaxRawChannels;++i){
+   //    fRawChannel[i] = -999;
+   //    fRawPlane  [i] = -999;
+   //    fRawAdcIntegral[i] = 0.0;
+   //    fRawAdcPeak[i]  = 0.0;
+   //    //for(int j=0; j<kMaxRawTicks; ++j){
+   //     //    fRawAdcPeak[i][j] = 0;
+   //     //    fRawAdcIntegral[i][j]=0
+   //     //}
+   // }
 }
 
 
