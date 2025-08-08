@@ -86,7 +86,7 @@ namespace duneana{
     	    uint64_t fTPADCPeak;
     	    uint64_t fTPADCSum;
             uint64_t fTPDetId;
-    
+            double fADCIntegralDAQ; 
     	    //TA information
     	    int fTANTPs;
     	    double fTATimeStart;
@@ -172,7 +172,7 @@ void duneana::cosmicAnalysis::beginJob(){
     fTreeTP->Branch("TPChannel", 	&fTPChannel);
     fTreeTP->Branch("TPADCPeak", 	&fTPADCPeak);
     fTreeTP->Branch("TPDetId", 		&fTPDetId);
-    
+    fTreeTP->Branch("tp_adcIntegral", &fADCIntegralDAQ);
     //TA information is also recorded in TPTree
     fTreeTA = tfs->make<TTree>("TA", "analysis");
     fTreeTA->Branch("event", 		&fEvent, 	"event/I");
@@ -299,54 +299,95 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     }
    art::Handle<std::vector<dunedaq::trgdataformats::TriggerActivityData>> taHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivityData>>(fTALabel); 
     //first try going through all the raw data and then look for the TP and get the raw data at the moment of TP
-   if(taHandle.isValid() && !taHandle->empty()){
-       auto const& tpVec     = *taHandle; 
-       for(auto const& rd: rawDigitHandle){
-            int chan = rd.Channel();
-            int plane = fWireReadoutGeom.View(chan);
-            std::vector<short>wf(rd.Samples());
-            raw::Uncompress(rd.ADCs(), wf, rd.GetPedestal(), rd.Compression());
-            int tpTick  = tpVec.front().time_peak;
-            int halfW   = 100;
-            int start   = std::max(0, tpTick-halfW);
-            int end     = std::min(int(wf.size())-1, tpTick+halfW);
+   //if(taHandle.isValid() && !taHandle->empty()){
+   //    auto const& tpVec     = *taHandle; 
+   //    for(auto const& rd: rawDigitHandle){
+   //         int chan = rd.Channel();
+   //         int plane = fWireReadoutGeom.View(chan);
+   //         std::vector<short>wf(rd.Samples());
+   //         raw::Uncompress(rd.ADCs(), wf, rd.GetPedestal(), rd.Compression());
+   //         int tpTick  = tpVec.front().time_peak;
+   //         int halfW   = 100;
+   //         int start   = std::max(0, tpTick-halfW);
+   //         int end     = std::min(int(wf.size())-1, tpTick+halfW);
 
-            double ped  = rd.GetPedestal();
-            double sum  = 0;
-            double m    = std::numeric_limits<double>::lowest();
-            for (int t=start; t<=end; ++t){
-                double v= wf[t]-ped;
-                sum    +=v;
-                m       = std::max(m, v);
-            }
-            fRawPlane       = plane;
-            fRawChannel     = chan;
-            fRawTimeStart   = start;
-            fRawTimeEnd     = end;
-            fRawTimePeak    = tpTick;
-            fRawAdcIntegral = sum;
-            fRawAdcPeak     = m;
-            fRawDigitTree->Fill();
+   //         double ped  = rd.GetPedestal();
+   //         double sum  = 0;
+   //         double m    = std::numeric_limits<double>::lowest();
+   //         for (int t=start; t<=end; ++t){
+   //             double v= wf[t]-ped;
+   //             sum    +=v;
+   //             m       = std::max(m, v);
+   //         }
+   //         fRawPlane       = plane;
+   //         fRawChannel     = chan;
+   //         fRawTimeStart   = start;
+   //         fRawTimeEnd     = end;
+   //         fRawTimePeak    = tpTick;
+   //         fRawAdcIntegral = sum;
+   //         fRawAdcPeak     = m;
+   //         fRawDigitTree->Fill();
 
-        }
-    }
+   //     }
+   // }
 
 
     if (tpHandle.isValid()){
     	for (const dunedaq::trgdataformats::TriggerPrimitive &tp: *tpHandle){
             fTPChannel		= tp.channel;
             int plane = fWireReadoutGeom.View(tp.channel);            
-            if(plane!=2)continue;
+            if(plane<0 || plane>2)continue;
             fTPTimeStart 	= tp.time_start;
             fTPTimePeak  	= tp.time_peak;
             fTPTimeOverThreshold 	= tp.time_over_threshold;
             ++tpCountPerPlane[plane];
             fTPADCPeak 		= tp.adc_peak;
+            fADCIntegralDAQ = tp.adc_integral;
             fTPDetId		= tp.detid;
             fTreeTP->Fill();
-                         
             
-           // auto it = rdMap.find(tp.channel);
+            auto it = rdMap.find(tp.channel);
+            if(it==rdMap.end()){
+                mf::LogWarning("CosmicAnalysis")<<"No RawDigit found for channel: "<<tp.channel;
+                continue;
+            }
+            const int tstart = static_cast<int>(tp.time_start);
+            const int tpeak  = static_cast<int>(tp.time_peak);
+            const int tot    = static_cast<int>(tp.time_over_threshold);
+
+            const raw::RawDigit& rd = *it->second;
+            std::vector<short> wf(rd.Samples());
+            raw::Uncompress(rd.ADCs(), wf, rd.GetPedestal(), rd.Compression());
+            const double pedestal = rd.GetPedestal();
+            // Use TP's own window; make wend exclusive; clamp to [0, wf.size()]
+            const int nTicks = static_cast<int>(wf.size());
+            int wstart = std::max<int>(0, tstart);
+            int wend       = std::min<int>(tstart+tot, nTicks);
+
+            // Fallback if TOT is 0/invalid
+            if (wstart >= wend){
+              constexpr int W = 100;
+              wstart = std::max(0, tpeak - W);
+              wend   = std::min(nTicks, tpeak + W + 1);
+              if (wstart >= wend) continue;
+            }
+
+            double rawSum = 0.0;
+            double rawMax = std::numeric_limits<double>::lowest();
+            for (int t = wstart; t < wend; ++t){
+              const double v = static_cast<double>(wf[t]) - pedestal;
+              rawSum += v;
+              if (v > rawMax) rawMax = v;
+            }
+            fRawPlane       = plane;
+            fRawChannel     = tp.channel;
+            fRawTimeStart   = wstart;
+            fRawTimeEnd     = wend-1;
+            fRawTimePeak    = tpeak;
+            fRawAdcIntegral = rawSum;
+            fRawAdcPeak     = rawMax;
+            fRawDigitTree->Fill();
+            // auto it = rdMap.find(tp.channel);
            // if(it==rdMap.end()){
            //     mf::LogWarning("CosmicAnalysis")<<"No Raw Digit found"<< tp.channel;
            // }

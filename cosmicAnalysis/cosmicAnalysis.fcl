@@ -19,7 +19,7 @@ source:
 {
     module_type: RootInput
     maxEvents: -1
-    fileNames:["/exp/dune/app/users/rraut/vd_cosmic/work/detsim_60threshold.root"]
+    fileNames:["/exp/dune/app/users/rraut/vd_cosmic/cosmic_n10/detsim_60threshold.root"]
 }
 
 physics:
