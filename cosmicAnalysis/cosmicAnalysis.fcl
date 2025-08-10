@@ -19,50 +19,24 @@ source:
 {
     module_type: RootInput
     maxEvents: -1
-    fileNames:["/exp/dune/app/users/rraut/vd_cosmic/cosmic_n10/detsim_60threshold.root"]
+    fileNames:["/exp/dune/app/users/rraut/vd_cosmic/cosmic_n10/detsim_30threshold.root"]
 }
 
 physics:
 {
-    producers:{
-        tamaker:{
-            module_type:TriggerPrimitiveMakerTPC
-            rawdigit_tag:   "tpcrawdecoder:daq"
-            tpalg:{
-                tool_type:  TPAlgTPCSimpleThreshold
-                verbosity: 0
-                threshold_tpg_plane0:   1
-                threshold_tpg_plane1:   1
-                threshold_tpg_plane2:   1
-            }
-        }
-        #tpmakerU: {
-        #    module_type:   "TriggerPrimitiveMakerTPC"
-        #    rawdigit_tag:   "tpcrawdecoder:daq"
-        #    ChannelGroup:  {plane:0}  # U plane
-        #    tpalg:{
-        #        tool_type: "ADCSimpleThreshold"
-        #        Threshold:     5
+        #producers:{
+        #    tamaker:{
+        #        module_type:TriggerPrimitiveMakerTPC
+        #        rawdigit_tag:   "tpcrawdecoder:daq"
+        #        tpalg:{
+        #            tool_type:  TPAlgTPCSimpleThreshold
+        #            verbosity: 0
+        #            threshold_tpg_plane0:   1
+        #            threshold_tpg_plane1:   1
+        #            threshold_tpg_plane2:   1
+        #        }
         #    }
-        #}
-        #tpmakerV: {
-        #    module_type:   "TriggerPrimitiveMakerTPC"
-        #    rawdigit_tag:   "tpcrawdecoder:daq"
-        #    ChannelGroup:  {plane:1}  # V plane
-        #    tpalg:{
-        #        tool_type: "ADCSimpleThreshold"
-        #        Threshold:     5
-        #    }
-        #}
-        #tpmakerZ: {
-        #    module_type:   "TriggerPrimitiveMakerTPC"
-        #    rawdigit_tag:   "tpcrawdecoder:daq"
-        #    ChannelGroup:  {plane:2}  # Z (collection) plane
-        #    tplag:{
-        #        tool_type: "ADCSimpleThreshold"
-        #        Threshold:     20
-        #    }
-        #}
+            
 
 
 
@@ -98,17 +72,17 @@ physics:
     	#	#}
     	#}
 
-    }
+    #}
     analyzers:{
         cosmicAnalysis:{
             module_type:        "cosmicAnalysis"
             MCParticleTag:      "largeant"
 	        TPLabel:		    "tpmakerTPC"
-	        TALabel:		    "tamaker"
+	        TALabel:		    "tamakerTPC::DetsimCosmic"
             RawDigitLabel:      "tpcrawdecoder:daq"
         }
     }
-    trigger_sim:		        [tamaker]
+    trigger_sim:		        []
     analysis_path:              [cosmicAnalysis]
     trigger_paths:              [trigger_sim]
     end_paths:                  [analysis_path]

@@ -8,8 +8,6 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "detdataformats/trigger/TriggerPrimitive.hpp"
 #include "detdataformats/trigger/TriggerActivityData.hpp"
-//#include "triggeralgs/TriggerActivity.hpp"
-//#include "trigger/TriggerPrimitive.hpp"
 #include "lardataobj/RawData/RawDigit.h"
 // LArSoft data products
 #include "nusimdata/SimulationBase/MCParticle.h"
@@ -182,9 +180,9 @@ void duneana::cosmicAnalysis::beginJob(){
     fTreeTA->Branch("TAPeak", 		&fTATimePeak, 	"TAPeak/D");	
     fTreeTA->Branch("TAADCPeak", 	&fTAADCPeak, 	"TAADCPeak/D");
     fTreeTA->Branch("TASum", 		&fTAADCSum, 	"TASum/D");
-    fTreeTA->Branch("TAChannelStart", 	&fTAChannelStart,"TAChannelStart/D");
-    fTreeTA->Branch("TAChannelEnd",	&fTAChannelEnd,  "TAChannelEnd/D");
-    fTreeTA->Branch("TAChannelPeak", 	&fTAChannelPeak ,"TAChannelPeak/D");
+    fTreeTA->Branch("TAChannelStart", 	&fTAChannelStart,"TAChannelStart/I");
+    fTreeTA->Branch("TAChannelEnd",	&fTAChannelEnd,  "TAChannelEnd/I");
+    fTreeTA->Branch("TAChannelPeak", 	&fTAChannelPeak ,"TAChannelPeak/I");
 
     fRawDigitTree = tfs->make<TTree>("rawDigitTree", "Raw Digit Waveform");
     fRawDigitTree->Branch("event",  &fEvent,    "event/I");
@@ -297,9 +295,6 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     if(rawCountPerPlane[0]==0 || rawCountPerPlane[1] ==0){
         mf::LogWarning("CosmicAnalysis")<<"U/V raw digit missing. Debug the tpcrawdecoder fcl.";
     }
-   art::Handle<std::vector<dunedaq::trgdataformats::TriggerActivityData>> taHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivityData>>(fTALabel); 
-    //first try going through all the raw data and then look for the TP and get the raw data at the moment of TP
-   //if(taHandle.isValid() && !taHandle->empty()){
    //    auto const& tpVec     = *taHandle; 
    //    for(auto const& rd: rawDigitHandle){
    //         int chan = rd.Channel();
@@ -387,31 +382,6 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
             fRawAdcIntegral = rawSum;
             fRawAdcPeak     = rawMax;
             fRawDigitTree->Fill();
-            // auto it = rdMap.find(tp.channel);
-           // if(it==rdMap.end()){
-           //     mf::LogWarning("CosmicAnalysis")<<"No Raw Digit found"<< tp.channel;
-           // }
-           // auto const& rd = *it->second;
-           // std::vector<short> wf(rd.Samples());
-           // raw::Uncompress(rd.ADCs(), wf, rd.GetPedestal(), rd.Compression());
-           // int wstart  = std::max(0, tp.time_start);
-           // int wend    = std::min((int)wf.size()-1, tp.time_start+tp.time_over_threshold);
-           // double rawSum = 0;
-           // double rawMax = std::numeric_limit<double>::lowest();
-           // double pedestal = rd.GetPedestal();
-           // for(int t=wstart; t<wend; ++t){
-           //     double v = wf[t] - pedestal;
-           //     rawSum +=v;
-           //     rawMax  = std::max(rawMax, v);
-
-           // }
-           // fRawTimeStart   = wstart;
-           // fRawTimeEnd     = wend;
-           // fRawAdcIntegral = rawSum;
-           // fRawAdcPeak     = rawMax;
-           // fRawChannel     = tp.channel;
-           // fRawPlane       = plane;
-           // 
 
         }
     }
@@ -420,7 +390,15 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
     }
     mf::LogInfo("CosmicAnalysis")<< "TP counts per plane → "<< "U=" << tpCountPerPlane[0] << ", V=" << tpCountPerPlane[1] << ", "<< "Z=" << tpCountPerPlane[2];
 
+   //if(taHandle.isValid() && !taHandle->empty()){
     //flushing out the Trigger Activity information
+    
+
+    
+    art::Handle<std::vector<dunedaq::trgdataformats::TriggerActivityData>> taHandle = e.getHandle<std::vector<dunedaq::trgdataformats::TriggerActivityData>>(fTALabel);
+    if(!taHandle.isValid()){
+        mf::LogWarning("CosmicAnalysis")<<"No TA found recheck again";
+    }
     std::array<size_t, 3> taCountPerPlane = {};
     if(taHandle.isValid()){
       for (const auto& ta: *taHandle){
@@ -433,15 +411,15 @@ void duneana::cosmicAnalysis::analyze(art::Event const& e){
         fTAChannelStart = ta.channel_start;
         fTAChannelEnd	= ta.channel_end;
         fTAChannelPeak	= ta.channel_peak;
-        int planeno = fWireReadoutGeom.View(ta.channel_start);
+        int planeno = fWireReadoutGeom.View(ta.channel_peak);
         if(planeno<0 || planeno>2){
             mf::LogWarning("CosmicAnalysis")<<"Thres is issue with plane reading";
             continue;
         }
         ++taCountPerPlane[planeno];
-        
-    
-
+        //int repCh = (ta.channel_peak !=0)? ta.channel_peak:(ta.channel_start+ta.channel_end)/2;
+        //mf::LogVerbatim("TPAdebug")<<"First TA CHannel = "<<repCh<<" , TimeStart, end: ("<<fTAChannelStart<<","<<fTAChannelEnd<<") , Time Peak: "<<fTAChannelPeak<<"...";
+        //break;
         fTreeTA->Fill();
 
 
